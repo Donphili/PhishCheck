@@ -9,6 +9,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Behind a host such as Render or Railway the real client IP arrives in a
+// forwarded header. Without this, the rate limiter sees one shared IP.
+if (process.env.TRUST_PROXY) {
+  app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
+}
+
 // ==========================================
 // 1. MIDDLEWARE CONFIGURATION
 // ==========================================

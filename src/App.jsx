@@ -24,11 +24,14 @@ import {
   X,
 } from "lucide-react";
 import { analyzeUrl, analyzeMessage } from "./securityEngine";
+import { applyWebRisk, checkWebRisk, webRiskEnabled } from "./webRisk";
 import "./App.css";
 
 const HISTORY_KEY = "phishcheck-url-history";
 const MAX_HISTORY = 20;
 const MAX_URL_LENGTH = 2048;
+// Pasted messages can contain private details, so history keeps only a preview.
+const HISTORY_MESSAGE_PREVIEW = 120;
 const MAX_MESSAGE_LENGTH = 10000;
 
 function readHistory() {
@@ -606,6 +609,7 @@ function App() {
   const [history, setHistory] = useState(readHistory);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [error, setError] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
 
   const [historySearch, setHistorySearch] = useState("");
   const [riskFilter, setRiskFilter] = useState("All");
@@ -658,7 +662,10 @@ function App() {
       score: scan.score,
       scannedAt: scan.scannedAt,
       indicators: scan.indicators,
-      submittedContent: scan.submittedContent,
+      submittedContent:
+        scan.type === "MESSAGE"
+          ? (scan.submittedContent || "").slice(0, HISTORY_MESSAGE_PREVIEW)
+          : scan.submittedContent,
       normalizedUrl: scan.normalizedUrl || "",
       safetyNote: scan.safetyNote || "",
     };
@@ -668,11 +675,11 @@ function App() {
     );
   };
 
-  const handleAnalyzeUrl = (event) => {
+  const handleAnalyzeUrl = async (event) => {
     event.preventDefault();
     setError("");
 
-    const analysis = normalizeAnalysis(
+    let analysis = normalizeAnalysis(
       analyzeUrl(url),
       "URL"
     );
@@ -681,6 +688,15 @@ function App() {
       setResult(null);
       setError(analysis.error);
       return;
+    }
+
+    if (webRiskEnabled) {
+      setIsChecking(true);
+
+      const check = await checkWebRisk(analysis.normalizedUrl);
+      analysis = normalizeAnalysis(applyWebRisk(analysis, check), "URL");
+
+      setIsChecking(false);
     }
 
     setResult(analysis);
@@ -1074,16 +1090,18 @@ function App() {
                     <button
                       className="primary-button"
                       type="submit"
+                      disabled={isChecking}
                     >
                       <Search size={18} />
-                      Analyze URL
+                      {isChecking ? "Checking..." : "Analyze URL"}
                     </button>
                   </form>
 
                   <p className="local-note">
                     <ShieldCheck size={15} />
-                    Analysis runs locally in this demo. The link will not be
-                    opened.
+                    {webRiskEnabled
+                      ? "The address is checked locally and also sent to Google Web Risk through our server. The link is never opened."
+                      : "Analysis runs locally in your browser. The link will not be opened."}
                   </p>
                 </section>
 
@@ -1200,7 +1218,8 @@ function App() {
 
                   <p>
                     Review your last {MAX_HISTORY} URL and message scans saved
-                    in this browser.
+                    in this browser. Only a short preview of each message is
+                    kept.
                   </p>
                 </div>
 

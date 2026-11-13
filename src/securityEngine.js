@@ -3,12 +3,14 @@ const MAX_URL_LENGTH = 2048;
 const MAX_MESSAGE_LENGTH = 10000;
 
 const trustedBrands = {
-  google: ["google.com"],
-  microsoft: ["microsoft.com", "live.com", "outlook.com"],
+  google: ["google.com", "googleapis.com", "gstatic.com", "googleusercontent.com", "youtube.com"],
+  microsoft: ["microsoft.com", "live.com", "outlook.com", "microsoftonline.com", "office.com"],
   apple: ["apple.com", "icloud.com"],
-  amazon: ["amazon.com", "amazon.co.uk"],
+  // amazonaws.com is Amazon's own domain but anyone can host content on it,
+  // so it is also listed in sharedHostingDomains below.
+  amazon: ["amazon.com", "amazon.co.uk", "amazonaws.com"],
   paypal: ["paypal.com"],
-  facebook: ["facebook.com"],
+  facebook: ["facebook.com", "fb.com", "fbcdn.net"],
   instagram: ["instagram.com"],
   netflix: ["netflix.com"],
   linkedin: ["linkedin.com"],
@@ -18,6 +20,27 @@ const trustedBrands = {
   whatsapp: ["whatsapp.com"],
   binance: ["binance.com"],
 };
+
+// Brands that run official country sites (google.com.kw, amazon.ae, dhl.de ...).
+// A country suffix is only accepted directly after the brand name, so
+// "google.com.kw.evil.example" is still treated as untrusted.
+const regionalBrands = new Set([
+  "google", "amazon", "apple", "microsoft", "yahoo", "dhl", "fedex",
+  "netflix", "paypal", "linkedin", "facebook", "instagram", "whatsapp",
+]);
+
+const regionalSuffixes = [
+  "com", "co.uk", "ae", "sa", "kw", "com.kw", "com.sa", "qa", "com.qa",
+  "bh", "om", "com.eg", "de", "fr", "it", "es", "nl", "in", "co.in",
+  "ca", "com.au", "com.tr",
+];
+
+// Platforms where anyone can publish a page. Not malicious by themselves.
+const sharedHostingDomains = [
+  "amazonaws.com", "googleusercontent.com", "web.app", "firebaseapp.com",
+  "github.io", "netlify.app", "vercel.app", "pages.dev", "herokuapp.com",
+  "blogspot.com", "weebly.com", "wixsite.com",
+];
 
 const shortenerDomains = [
   "bit.ly",
@@ -102,6 +125,47 @@ function normalizeLookalikeText(value) {
     .replace(/5/g, "s")
     .replace(/7/g, "t")
     .replace(/rn/g, "m");
+}
+
+function isOfficialHost(hostname, brand, officialDomains) {
+  if (officialDomains.some((domain) => hostnameMatchesDomain(hostname, domain))) {
+    return true;
+  }
+
+  return (
+    regionalBrands.has(brand) &&
+    regionalSuffixes.some((suffix) =>
+      hostnameMatchesDomain(hostname, `${brand}.${suffix}`)
+    )
+  );
+}
+
+const shortBrandKeywords =
+  /^(id|support|login|secure|verify|account|service|care|pay|help|billing)/;
+
+// Long brand names can appear anywhere in a label. Short ones (apple, dhl,
+// yahoo, fedex) must be a whole word, or followed by a typical phishing
+// keyword, so "pineapple.com" is not mistaken for Apple.
+function labelMentionsBrand(label, brand) {
+  const tokens = label.split(/[-_]/);
+
+  if (tokens.includes(brand)) return true;
+  if (brand.length >= 6) return label.includes(brand);
+
+  return tokens.some(
+    (token) =>
+      token.startsWith(brand) &&
+      shortBrandKeywords.test(token.slice(brand.length))
+  );
+}
+
+function calculateScore(indicators) {
+  const total = indicators.reduce((sum, item) => sum + item.points, 0);
+  const hasHighSeverity = indicators.some((item) => item.severity === "high");
+
+  // A single high-severity signal (IP address, user@host trick) should never
+  // be reported as "Low" just because its point value is under the threshold.
+  return Math.min(Math.max(total, hasHighSeverity ? 30 : 0), 100);
 }
 
 function decodePunycodeLabel(label) {
@@ -211,18 +275,16 @@ function findBrandInHostname(hostname) {
   const labels = hostname.split(".");
 
   for (const [brand, officialDomains] of Object.entries(trustedBrands)) {
-    const isOfficial = officialDomains.some((domain) =>
-      hostnameMatchesDomain(hostname, domain)
-    );
-
-    if (isOfficial) continue;
+    if (isOfficialHost(hostname, brand, officialDomains)) continue;
 
     for (const label of labels) {
+      const lower = label.toLowerCase();
       const normalized = normalizeLookalikeText(label);
 
       if (
-        normalized.includes(brand) &&
-        normalized !== label.toLowerCase()
+        normalized !== lower &&
+        labelMentionsBrand(normalized, brand) &&
+        !labelMentionsBrand(lower, brand)
       ) {
         return {
           brand,
@@ -232,7 +294,7 @@ function findBrandInHostname(hostname) {
         };
       }
 
-      if (label.toLowerCase().includes(brand)) {
+      if (labelMentionsBrand(lower, brand)) {
         return {
           brand,
           officialDomains,
@@ -366,9 +428,7 @@ export function analyzeUrl(input) {
     const normalizedDecoded = normalizeLookalikeText(decodedHostname);
 
     for (const [brand, officialDomains] of Object.entries(trustedBrands)) {
-      const isOfficial = officialDomains.some((domain) =>
-        hostnameMatchesDomain(hostname, domain)
-      );
+      const isOfficial = isOfficialHost(hostname, brand, officialDomains);
 
       if (normalizedDecoded.includes(brand) && !isOfficial) {
         addIndicator(
@@ -444,6 +504,20 @@ export function analyzeUrl(input) {
         `The name "${brandMatch.brand}" appears before the final hostname sections. That text does not establish who owns the actual domain.`
       );
     }
+  }
+
+  if (
+    sharedHostingDomains.some((domain) =>
+      hostnameMatchesDomain(hostname, domain)
+    )
+  ) {
+    addIndicator(
+      indicators,
+      "Hosted on a shared platform",
+      8,
+      "low",
+      "Anyone can publish pages on this platform, so the address does not tell you who runs the page. Many legitimate sites use these services, but so do scammers."
+    );
   }
 
   if (hostnameParts.length >= 5) {
@@ -534,10 +608,7 @@ export function analyzeUrl(input) {
     );
   }
 
-  const score = Math.min(
-    indicators.reduce((total, item) => total + item.points, 0),
-    100
-  );
+  const score = calculateScore(indicators);
 
   const riskLevel = getRiskLevel(score);
   const analyzedAt = new Date().toISOString();
@@ -560,6 +631,152 @@ export function analyzeUrl(input) {
   };
 }
 
+const URL_IN_TEXT = /\b(?:https?:\/\/|www\.)[^\s<>"')\]]+/gi;
+
+function extractUrls(text) {
+  const found = text.match(URL_IN_TEXT) || [];
+  const cleaned = found.map((item) => item.replace(/[.,;:!?]+$/, ""));
+
+  return [...new Set(cleaned)].slice(0, 3);
+}
+
+// Note: \b does not work with Arabic letters in JavaScript, so the Arabic
+// patterns below do not use it.
+const messagePatterns = [
+  {
+    label: "Direct request for passwords or verification codes",
+    regex:
+      /\b(send|share|provide|reply with|enter|submit|confirm|tell us|give us)\b.{0,70}\b(password|passcode|otp|one[- ]time password|verification code|pin)\b/i,
+    arabic:
+      /(أرسل|ارسل|إرسال|ارسال|شارك|مشاركة|أدخل|ادخل|إدخال|ادخال|زودنا|تزويدنا|أكد|اكد|تأكيد|قدم|تقديم).{0,40}(رمز التحقق|كلمة المرور|كلمة السر|الرقم السري|رمز الدخول|OTP)/i,
+    points: 45,
+    severity: "high",
+    explanation:
+      "The message appears to ask the recipient to provide sensitive login credentials or verification codes. Never share these secrets through unexpected messages.",
+  },
+  {
+    label: "Direct request for financial information",
+    regex:
+      /\b(send|share|provide|reply with|enter|submit|give us|confirm)\b.{0,70}\b(bank details|card number|credit card|debit card|account number|payment details|cvv|security code)\b/i,
+    arabic:
+      /(أرسل|ارسل|إرسال|ارسال|شارك|مشاركة|أدخل|ادخل|إدخال|ادخال|زودنا|تزويدنا|أكد|اكد|تأكيد|قدم|تقديم).{0,40}(رقم البطاقة|بيانات البطاقة|بيانات الحساب|رقم الحساب|معلومات البطاقة)/i,
+    points: 35,
+    severity: "high",
+    explanation:
+      "The message appears to request sensitive financial information. Verify the request independently before sharing any details.",
+  },
+  {
+    label: "Urgent or threatening language",
+    regex:
+      /\b(urgent|immediately|act now|right away|final warning|within 24 hours|without delay|as soon as possible)\b/i,
+    arabic:
+      /(عاجل|فوراً|فورا|على الفور|خلال 24 ساعة|آخر تحذير|في أسرع وقت)/,
+    points: 15,
+    severity: "medium",
+    explanation:
+      "The message creates pressure to act quickly. Scammers often use urgency to discourage careful verification.",
+  },
+  {
+    label: "Prize or unexpected reward",
+    regex:
+      /\b(you have won|winner|claim your prize|free reward|congratulations|cash prize|claim reward|gift card)\b/i,
+    arabic: /(ربحت|فزت|مبروك|جائزة|هدية مجانية)/,
+    points: 15,
+    severity: "medium",
+    explanation:
+      "The message uses prize or reward language that may be designed to attract attention or encourage a response.",
+  },
+  {
+    label: "Suspicious link or account verification request",
+    regex:
+      /\b(click here|tap here|verify your account|confirm your account|account verification|follow this link|open this link)\b/i,
+    arabic:
+      /(اضغط (هنا|على الرابط)|انقر (هنا|على الرابط)|افتح الرابط|ادخل (على )?الرابط|تحقق من حسابك)/,
+    points: 15,
+    severity: "medium",
+    explanation:
+      "The message encourages the recipient to follow a link or verify an account. Check the destination independently before proceeding.",
+  },
+  {
+    label: "Account suspension or closure threat",
+    regex:
+      /\b(account will be suspended|account suspended|account will be closed|account has been locked|permanently disabled|access will be restricted)\b/i,
+    arabic:
+      /(تم|سيتم) (إيقاف|تعليق|إغلاق|حظر).{0,25}(حساب|بطاقة)/,
+    points: 15,
+    severity: "medium",
+    explanation:
+      "The message threatens account suspension or loss of access. This is a common pressure tactic in phishing attempts.",
+  },
+  {
+    label: "Request to pay a delivery, customs or fine fee",
+    regex:
+      /\b(parcel|package|shipment|delivery|customs)\b.{0,80}\b(fee|fees|charge|payment|pay)\b|\b(pay|payment of)\b.{0,60}\b(fee|fine|customs|redelivery)\b|\b(unpaid|outstanding)\b.{0,30}\b(fine|toll|violation)\b/i,
+    arabic:
+      /(رسوم|غرامة|مخالفة).{0,40}(شحنة|طرد|توصيل|جمارك|مرورية)|(شحنة|طرد|توصيل|جمارك).{0,40}(رسوم|دفع|سداد)/,
+    points: 25,
+    severity: "medium",
+    explanation:
+      "The message asks for a small payment to release a parcel or settle a fine. Fake delivery and fine notices are a very common scam. Check with the courier or authority using their official app or website.",
+  },
+  {
+    label: "Unusual payment method",
+    regex:
+      /\b(gift cards|gift card|cryptocurrency|bitcoin|wire transfer|western union|moneygram|prepaid card)\b/i,
+    arabic: /(بطاقات هدايا|بطاقة هدايا|عملة رقمية|بيتكوين|حوالة)/,
+    points: 20,
+    severity: "high",
+    explanation:
+      "The message mentions payment methods that can be difficult to reverse or trace. Be cautious if someone demands payment this way.",
+  },
+  {
+    label: "Unexpected attachment",
+    regex:
+      /\b(open the attachment|attached file|download the attachment|enable macros)\b/i,
+    arabic: /(افتح المرفق|حمل المرفق|الملف المرفق)/,
+    points: 15,
+    severity: "medium",
+    explanation:
+      "The message encourages opening or downloading an attachment. Unexpected attachments can contain harmful files.",
+  },
+  {
+    label: "Impersonation language",
+    regex:
+      /\b(we are from|on behalf of|your bank representative|technical support team|security department)\b/i,
+    arabic: /(نحن من|بالنيابة عن|ممثل البنك|فريق الدعم الفني|قسم الأمن)/,
+    points: 10,
+    severity: "low",
+    explanation:
+      "The sender uses organizational or authority-related language. Independently verify the sender before trusting the request.",
+  },
+];
+
+// "Never share your OTP" is a warning, not a request. Skip matches that are
+// directly preceded by a negation.
+const negationBefore =
+  /(never|not|don't|dont|avoid|nobody|no one)\s+(ever\s+|to\s+)?$|(لا|عدم)\s*\S{0,3}$/i;
+
+function matchesWithoutNegation(text, regex) {
+  const globalRegex = new RegExp(
+    regex.source,
+    regex.flags.includes("g") ? regex.flags : `${regex.flags}g`
+  );
+
+  let match;
+
+  while ((match = globalRegex.exec(text)) !== null) {
+    const before = text.slice(Math.max(0, match.index - 25), match.index);
+
+    if (!negationBefore.test(before)) return true;
+
+    // Restart just after this match's first character so an earlier negated
+    // sentence cannot swallow a real request that follows it.
+    globalRegex.lastIndex = match.index + 1;
+  }
+
+  return false;
+}
+
 export function analyzeMessage(input) {
   const submittedContent = String(input || "").trim();
 
@@ -577,126 +794,22 @@ export function analyzeMessage(input) {
 
   const indicators = [];
 
-  const educationalContext =
-    /\b(never|don't|do not|avoid|beware|warning|teach|training|learn|recognize|spot|identify|protect against|awareness|example of|phishing awareness)\b/i.test(
-      submittedContent
-    );
+  // The previous version skipped the strongest checks whenever words like
+  // "never", "warning" or "avoid" appeared. Real scam messages often contain
+  // "never share your OTP", so that let them through. Every pattern now
+  // always applies.
+  let hasDirectCredentialRequest = false;
 
-  const directCredentialRequest =
-    /\b(send|share|provide|reply with|enter|submit|confirm|tell us|give us)\b.{0,70}\b(password|passcode|otp|one[- ]time password|verification code|pin)\b/i.test(
-      submittedContent
-    );
-
-  const directFinancialRequest =
-    /\b(send|share|provide|reply with|enter|submit|give us|confirm)\b.{0,70}\b(bank details|card number|credit card|debit card|account number|payment details|cvv|security code)\b/i.test(
-      submittedContent
-    );
-
-  const patterns = [
-    {
-      label: "Direct request for passwords or verification codes",
-      regex:
-        /\b(send|share|provide|reply with|enter|submit|confirm|tell us|give us)\b.{0,70}\b(password|passcode|otp|one[- ]time password|verification code|pin)\b/i,
-      points: 45,
-      severity: "high",
-      explanation:
-        "The message appears to ask the recipient to provide sensitive login credentials or verification codes. Never share these secrets through unexpected messages.",
-      educationalSensitive: true,
-    },
-    {
-      label: "Direct request for financial information",
-      regex:
-        /\b(send|share|provide|reply with|enter|submit|give us|confirm)\b.{0,70}\b(bank details|card number|credit card|debit card|account number|payment details|cvv|security code)\b/i,
-      points: 35,
-      severity: "high",
-      explanation:
-        "The message appears to request sensitive financial information. Verify the request independently before sharing any details.",
-      educationalSensitive: true,
-    },
-    {
-      label: "Urgent or threatening language",
-      regex:
-        /\b(urgent|immediately|act now|right away|final warning|within 24 hours|without delay|as soon as possible)\b/i,
-      points: 15,
-      severity: "medium",
-      explanation:
-        "The message creates pressure to act quickly. Scammers often use urgency to discourage careful verification.",
-    },
-    {
-      label: "Prize or unexpected reward",
-      regex:
-        /\b(you have won|winner|claim your prize|free reward|congratulations|cash prize|claim reward|gift card)\b/i,
-      points: 15,
-      severity: "medium",
-      explanation:
-        "The message uses prize or reward language that may be designed to attract attention or encourage a response.",
-    },
-    {
-      label: "Suspicious link or account verification request",
-      regex:
-        /\b(click here|tap here|verify your account|confirm your account|account verification|follow this link|open this link)\b/i,
-      points: 15,
-      severity: "medium",
-      explanation:
-        "The message encourages the recipient to follow a link or verify an account. Check the destination independently before proceeding.",
-      educationalSensitive: true,
-    },
-    {
-      label: "Account suspension or closure threat",
-      regex:
-        /\b(account will be suspended|account suspended|account will be closed|account has been locked|permanently disabled|access will be restricted)\b/i,
-      points: 15,
-      severity: "medium",
-      explanation:
-        "The message threatens account suspension or loss of access. This is a common pressure tactic in phishing attempts.",
-    },
-    {
-      label: "Unusual payment method",
-      regex:
-        /\b(gift cards|gift card|cryptocurrency|bitcoin|wire transfer|western union|moneygram|prepaid card)\b/i,
-      points: 20,
-      severity: "high",
-      explanation:
-        "The message mentions payment methods that can be difficult to reverse or trace. Be cautious if someone demands payment this way.",
-    },
-    {
-      label: "Unexpected attachment",
-      regex:
-        /\b(open the attachment|attached file|download the attachment|enable macros)\b/i,
-      points: 15,
-      severity: "medium",
-      explanation:
-        "The message encourages opening or downloading an attachment. Unexpected attachments can contain harmful files.",
-    },
-    {
-      label: "Impersonation language",
-      regex:
-        /\b(we are from|on behalf of|your bank representative|technical support team|security department)\b/i,
-      points: 10,
-      severity: "low",
-      explanation:
-        "The sender uses organizational or authority-related language. Independently verify the sender before trusting the request.",
-    },
-  ];
-
-  patterns.forEach((pattern) => {
-    if (!pattern.regex.test(submittedContent)) return;
-
-    if (educationalContext && pattern.educationalSensitive) return;
-
+  for (const pattern of messagePatterns) {
     if (
-      pattern.label ===
-        "Direct request for passwords or verification codes" &&
-      !directCredentialRequest
+      !matchesWithoutNegation(submittedContent, pattern.regex) &&
+      !matchesWithoutNegation(submittedContent, pattern.arabic)
     ) {
-      return;
+      continue;
     }
 
-    if (
-      pattern.label === "Direct request for financial information" &&
-      !directFinancialRequest
-    ) {
-      return;
+    if (pattern.label === messagePatterns[0].label) {
+      hasDirectCredentialRequest = true;
     }
 
     indicators.push({
@@ -705,11 +818,11 @@ export function analyzeMessage(input) {
       severity: pattern.severity,
       explanation: pattern.explanation,
     });
-  });
+  }
 
   if (
-    !directCredentialRequest &&
-    /\b(password|passcode|otp|one[- ]time password|verification code|pin)\b/i.test(
+    !hasDirectCredentialRequest &&
+    /\b(password|passcode|otp|one[- ]time password|verification code|pin)\b|رمز التحقق|كلمة المرور/i.test(
       submittedContent
     )
   ) {
@@ -722,10 +835,31 @@ export function analyzeMessage(input) {
     });
   }
 
-  const score = Math.min(
-    indicators.reduce((total, item) => total + item.points, 0),
-    100
-  );
+  // Check every link found inside the message with the URL analyzer.
+  for (const link of extractUrls(submittedContent)) {
+    const linkResult = analyzeUrl(link);
+
+    if (linkResult.error || linkResult.score === 0) continue;
+
+    const topSignals = linkResult.indicators
+      .slice(0, 2)
+      .map((item) => item.label)
+      .join("; ");
+
+    indicators.push({
+      label: `Link in message: ${linkResult.hostname}`,
+      points: Math.min(40, Math.round(linkResult.score * 0.7)),
+      severity:
+        linkResult.riskLevel === "High"
+          ? "high"
+          : linkResult.riskLevel === "Moderate"
+            ? "medium"
+            : "low",
+      explanation: `A link in this message shows warning signs: ${topSignals}. Do not open it from the message. Paste it into the URL Scanner for the full breakdown.`,
+    });
+  }
+
+  const score = calculateScore(indicators);
 
   const riskLevel = getRiskLevel(score);
   const analyzedAt = new Date().toISOString();
