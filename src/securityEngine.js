@@ -3,13 +3,13 @@ const MAX_URL_LENGTH = 2048;
 const MAX_MESSAGE_LENGTH = 10000;
 
 const trustedBrands = {
-  google: ["google.com", "googleapis.com", "gstatic.com", "googleusercontent.com", "youtube.com"],
-  microsoft: ["microsoft.com", "live.com", "outlook.com", "microsoftonline.com", "office.com"],
+  google: ["google.com", "googleapis.com", "gstatic.com", "googleusercontent.com", "youtube.com", "goo.gl"],
+  microsoft: ["microsoft.com", "live.com", "outlook.com", "microsoftonline.com", "office.com", "microsoft365.com", "office365.com", "windows.com"],
   apple: ["apple.com", "icloud.com"],
   // amazonaws.com is Amazon's own domain but anyone can host content on it,
   // so it is also listed in sharedHostingDomains below.
   amazon: ["amazon.com", "amazon.co.uk", "amazonaws.com"],
-  paypal: ["paypal.com"],
+  paypal: ["paypal.com", "paypal.me"],
   facebook: ["facebook.com", "fb.com", "fbcdn.net"],
   instagram: ["instagram.com"],
   netflix: ["netflix.com"],
@@ -17,8 +17,36 @@ const trustedBrands = {
   dhl: ["dhl.com"],
   fedex: ["fedex.com"],
   yahoo: ["yahoo.com"],
-  whatsapp: ["whatsapp.com"],
+  whatsapp: ["whatsapp.com", "wa.me"],
   binance: ["binance.com"],
+  coinbase: ["coinbase.com"],
+  metamask: ["metamask.io"],
+  trustwallet: ["trustwallet.com"],
+  telegram: ["telegram.org", "t.me"],
+  tiktok: ["tiktok.com"],
+  spotify: ["spotify.com", "scdn.co"],
+  steam: ["steampowered.com", "steamcommunity.com"],
+  roblox: ["roblox.com"],
+  airbnb: ["airbnb.com"],
+  shopee: ["shopee.com", "shopee.co.id", "shopee.sg", "shopee.ph", "shopee.vn", "shopee.tw", "shopee.com.my", "shopee.co.th", "shopee.com.br", "shopeepay.com"],
+  dropbox: ["dropbox.com"],
+  adobe: ["adobe.com"],
+  docusign: ["docusign.com", "docusign.net"],
+  wetransfer: ["wetransfer.com"],
+  zoom: ["zoom.us", "zoom.com"],
+  aramex: ["aramex.com"],
+  // Kuwait. Please double-check these official domains before relying on them.
+  kfh: ["kfh.com"],
+  nbk: ["nbk.com"],
+  cbk: ["cbk.com"],
+  boubyan: ["boubyan.com", "bankboubyan.com"],
+  gulfbank: ["gulfbank.com", "e-gulfbank.com"],
+  warba: ["warbabank.com"],
+  burgan: ["burgan.com"],
+  knet: ["knet.com.kw"],
+  talabat: ["talabat.com"],
+  zain: ["zain.com"],
+  ooredoo: ["ooredoo.com", "ooredoo.com.kw"],
 };
 
 // Brands that run official country sites (google.com.kw, amazon.ae, dhl.de ...).
@@ -27,6 +55,8 @@ const trustedBrands = {
 const regionalBrands = new Set([
   "google", "amazon", "apple", "microsoft", "yahoo", "dhl", "fedex",
   "netflix", "paypal", "linkedin", "facebook", "instagram", "whatsapp",
+  "airbnb", "spotify", "tiktok", "adobe", "dropbox", "binance", "coinbase",
+  "kfh", "nbk", "cbk", "boubyan", "gulfbank", "warba", "burgan", "zain", "talabat",
 ]);
 
 const regionalSuffixes = [
@@ -38,9 +68,33 @@ const regionalSuffixes = [
 // Platforms where anyone can publish a page. Not malicious by themselves.
 const sharedHostingDomains = [
   "amazonaws.com", "googleusercontent.com", "web.app", "firebaseapp.com",
-  "github.io", "netlify.app", "vercel.app", "pages.dev", "herokuapp.com",
-  "blogspot.com", "weebly.com", "wixsite.com",
+  "github.io", "gitbook.io", "netlify.app", "vercel.app", "pages.dev",
+  "workers.dev", "r2.dev", "herokuapp.com", "onrender.com", "glitch.me",
+  "replit.app", "repl.co", "blogspot.com", "weebly.com", "wixsite.com",
+  "godaddysites.com", "myshopify.com", "webflow.io", "carrd.co", "notion.site",
+  "framer.website", "typedream.site", "trycloudflare.com", "ngrok.io",
+  "ngrok-free.app", "000webhostapp.com", "infinityfreeapp.com", "lovable.app",
+  "bubbleapps.io", "wordpress.com", "web.core.windows.net", "azurewebsites.net",
 ];
+
+// Top-level domains that are heavily used in scam campaigns. A weak signal.
+const riskyTlds = new Set([
+  "vip", "top", "xyz", "icu", "cfd", "sbs", "click", "cyou", "rest", "monster",
+  "buzz", "shop", "live", "work", "support", "country", "gq", "tk", "ml", "ga", "cf",
+]);
+
+// Words that appear again and again in scam page names.
+const scamWords =
+  /(hadiah|pemenang|promo|bonus|claim|giveaway|gift|free|wallet|airdrop|appeal|recover|helpdesk|verif|login|signin|secure|refund|cashback|voucher|prize|winner|lucky|reward|undian|klaim)/i;
+
+function looksGenerated(label) {
+  const chunks = label.split("-");
+  const mixed = chunks.filter(
+    (chunk) => chunk.length >= 5 && /[a-z]/i.test(chunk) && /\d/.test(chunk)
+  ).length;
+
+  return mixed >= 2;
+}
 
 const shortenerDomains = [
   "bit.ly",
@@ -506,17 +560,46 @@ export function analyzeUrl(input) {
     }
   }
 
-  if (
-    sharedHostingDomains.some((domain) =>
-      hostnameMatchesDomain(hostname, domain)
-    )
-  ) {
+  const sharedHost = sharedHostingDomains.find((domain) =>
+    hostnameMatchesDomain(hostname, domain)
+  );
+
+  if (sharedHost) {
     addIndicator(
       indicators,
       "Hosted on a shared platform",
       8,
       "low",
       "Anyone can publish pages on this platform, so the address does not tell you who runs the page. Many legitimate sites use these services, but so do scammers."
+    );
+
+    const ownLabels = hostname
+      .slice(0, hostname.length - sharedHost.length - 1)
+      .split(".")
+      .filter(Boolean);
+
+    if (
+      ownLabels.some((label) => looksGenerated(label) || scamWords.test(label))
+    ) {
+      addIndicator(
+        indicators,
+        "Free-hosted page with a scam-style or machine-generated name",
+        25,
+        "medium",
+        "The page name looks randomly generated or uses words common in scam pages (prizes, rewards, login, verify). Scam pages are often created in bulk on free hosting."
+      );
+    }
+  }
+
+  const tld = hostnameParts[hostnameParts.length - 1];
+
+  if (riskyTlds.has(tld) && !isIPAddress(hostname)) {
+    addIndicator(
+      indicators,
+      "Domain ending often used in scam campaigns",
+      12,
+      "low",
+      `Addresses ending in .${tld} are cheap to register and are common in scam campaigns. Plenty of honest sites use them too, so this is only a weak signal.`
     );
   }
 

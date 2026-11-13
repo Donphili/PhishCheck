@@ -4,17 +4,37 @@ A scam and phishing awareness tool. Paste a suspicious link or message and Phish
 
 PhishCheck reports **risk indicators, not verdicts**. A low score does not prove something is safe, and a high score does not prove it is malicious.
 
-## Features
+## How detection works
 
-- **URL Scanner**: lookalike brand names, embedded official domains, IP-address links, `user@host` tricks, Punycode, link shorteners, shared hosting platforms.
-- **Message Analyzer**: credential and payment requests, urgency, delivery/fine fee scams, fake account-suspension threats, in English and Arabic. Links inside the message are scanned too.
-- **Scan history** saved in your browser only (messages keep just a short preview).
-- **PDF report** export and a **Learning Center**.
-- **Optional** Google Web Risk lookup through the included backend.
+PhishCheck combines two layers.
+
+1. **Local warning-sign checks** (always on, in your browser): lookalike brand names, official domains hidden inside fake ones, IP-address links, `user@host` tricks, Punycode, link shorteners, free-hosting pages with scam-style names, and for messages: credential and payment requests, urgency, delivery/fine fee scams, account-suspension threats (English and Arabic). Links inside messages are scanned too.
+2. **Online threat lists** (optional, through the backend). Submitted links are checked against the services you configure:
+
+| Source | Covers | Cost and terms |
+| --- | --- | --- |
+| Google Safe Browsing | phishing, malware, unwanted software | Free, **non-commercial use only** |
+| Google Web Risk | same lists as Safe Browsing | Commercial. First 100,000 lookups per month free, billing account required |
+| URLhaus (abuse.ch) | malware distribution links | Free key, fair use / non-commercial |
+| OpenPhish community feed | phishing links | Free, **non-commercial only**, updated every 12 hours, partial coverage |
+
+If you start selling anything built on PhishCheck, switch to Web Risk and turn the non-commercial sources off.
+
+### How well does it work?
+
+Run `npm run evaluate` to test the local checks against the current OpenPhish feed. On the day this version was built (300 real phishing links, 136 legitimate sites):
+
+- Local checks alone flagged **143 of 300 (about 48%)** of real phishing links, with **0** false alarms on the legitimate sites. Before the improvements in this version they flagged about 4%.
+- The links that slip through are mostly randomly named pages on free hosting and hacked websites, which look ordinary. Only the online lists can catch many of these, and only once they have been reported.
+- Brand-new scam pages are often not listed anywhere yet. **No result from PhishCheck guarantees a link is safe.**
+
+These numbers come from one day's feed and a small legitimate-site list, so treat them as a rough guide, not a promise.
 
 ## Privacy
 
-Analysis runs in your browser. Links are never opened. If you enable the Web Risk backend, submitted URLs (not messages) are sent to your server and then to Google.
+- Analysis of messages and links runs in your browser. Links are never opened.
+- Message history keeps only a short preview.
+- With the backend enabled, **only URLs** (never message text) are sent to your server, with usernames, passwords and `#fragments` removed, and then to the threat-list services. Google Safe Browsing receives only a short hash prefix of the link. The server does not log submitted URLs.
 
 ## Run locally
 
@@ -23,24 +43,35 @@ npm install
 npm run dev
 ```
 
-## Run the tests
+## Enable the online threat lists (optional)
+
+1. Backend setup:
+   ```bash
+   cd backend
+   npm install
+   copy .env.example .env     # on Mac/Linux: cp .env.example .env
+   ```
+   Open `backend/.env` and add the keys you have (see comments in the file).
+2. Frontend: copy `.env.example` to `.env` in the project root (it sets `VITE_API_URL`).
+3. Start the backend with `npm run dev` inside `backend`, and the frontend with `npm run dev` in the project root.
+4. Check `http://localhost:5000/api/health` to see which sources are active.
+
+## Tests
 
 ```bash
-npm test
+npm test                  # local checks and result handling
+cd backend && npm test    # canonicalization, providers, API route
 ```
-
-## Enable Google Web Risk (optional)
-
-1. Copy `backend/.env.example` to `backend/.env` and add your key.
-2. Copy `.env.example` to `.env` (sets `VITE_API_URL`).
-3. Start the backend: `cd backend && npm install && npm run dev`.
-4. Start the frontend: `npm run dev`.
 
 ## Project structure
 
 ```
-src/securityEngine.js   scoring rules for URLs and messages
-src/webRisk.js          optional Web Risk client
-src/App.jsx             interface
-backend/server.js       Express API (Google Web Risk proxy, rate limited)
+src/securityEngine.js       local scoring rules for URLs and messages
+src/linkCheck.js            sends links to the backend and merges the results
+src/App.jsx                 interface
+scripts/evaluate.mjs        measures detection against the live OpenPhish feed
+backend/server.js           Express API (rate limited)
+backend/lib/checkUrl.js     runs all sources in parallel, caches, combines results
+backend/lib/canonicalize.js Safe Browsing URL canonicalization and hashing
+backend/lib/providers/      one file per threat-list source
 ```

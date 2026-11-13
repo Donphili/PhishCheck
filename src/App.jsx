@@ -24,7 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { analyzeUrl, analyzeMessage } from "./securityEngine";
-import { applyWebRisk, checkWebRisk, webRiskEnabled } from "./webRisk";
+import { applyLinkCheck, checkLink, linkCheckEnabled } from "./linkCheck";
 import "./App.css";
 
 const HISTORY_KEY = "phishcheck-url-history";
@@ -690,11 +690,11 @@ function App() {
       return;
     }
 
-    if (webRiskEnabled) {
+    if (linkCheckEnabled) {
       setIsChecking(true);
 
-      const check = await checkWebRisk(analysis.normalizedUrl);
-      analysis = normalizeAnalysis(applyWebRisk(analysis, check), "URL");
+      const check = await checkLink(analysis.normalizedUrl);
+      analysis = normalizeAnalysis(applyLinkCheck(analysis, check), "URL");
 
       setIsChecking(false);
     }
@@ -1099,8 +1099,8 @@ function App() {
 
                   <p className="local-note">
                     <ShieldCheck size={15} />
-                    {webRiskEnabled
-                      ? "The address is checked locally and also sent to Google Web Risk through our server. The link is never opened."
+                    {linkCheckEnabled
+                      ? "The address is checked locally and also sent, without any login details, to online threat-list services through our server. The link is never opened."
                       : "Analysis runs locally in your browser. The link will not be opened."}
                   </p>
                 </section>
