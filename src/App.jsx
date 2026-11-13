@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { analyzeUrl, analyzeMessage } from "./securityEngine";
 import { applyLinkCheck, checkLink, linkCheckEnabled } from "./linkCheck";
+import { PhishingQuiz, VerifyChecklist } from "./LearningExtras";
 import "./App.css";
 
 const HISTORY_KEY = "phishcheck-url-history";
@@ -783,6 +784,22 @@ function App() {
     { name: "Scan History", icon: History },
     { name: "Learning Center", icon: BookOpen },
   ];
+
+  // Opens a quiz scenario in the matching tool so people can see how
+  // PhishCheck judges it.
+  const tryQuizItem = (question) => {
+    setResult(null);
+    setError("");
+    setMobileMenu(false);
+
+    if (question.kind === "link") {
+      setUrl(question.content);
+      setActiveTab("URL Scanner");
+    } else {
+      setMessage(question.content);
+      setActiveTab("Message Analyzer");
+    }
+  };
 
   const changeTab = (tab) => {
     setActiveTab(tab);
@@ -1587,6 +1604,11 @@ function App() {
                     urgency to influence your decisions.
                   </p>
                 </article>
+              </div>
+
+              <div className="learn-extras">
+                <PhishingQuiz onTryIt={tryQuizItem} />
+                <VerifyChecklist />
               </div>
             </>
           )}

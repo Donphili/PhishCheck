@@ -84,3 +84,42 @@ test("empty and oversized messages return an error", () => {
   assert.ok(msg("").error);
   assert.ok(msg("a".repeat(10001)).error);
 });
+
+test("ordinary messages are not flagged", () => {
+  const benign = [
+    "Hi, are we still meeting at 6 today? I'll bring the documents.",
+    "Your OTP for login is 551203. Do not share it with anyone.",
+    "Please note our bank details have not changed. Invoice 2291 is attached.",
+    "The new account manager will contact you next week to introduce herself.",
+    "Delivery code: 4821. Please give it to the driver when he arrives.",
+    "I'll pay you back tomorrow for the lunch, thanks for covering me.",
+    "Earn your degree online with flexible schedules. Enrollment is open.",
+    "Don't call me before 9, I'm sleeping. Text me instead.",
+  ];
+
+  for (const text of benign) {
+    assert.ok(msg(text).score < 30, text);
+  }
+});
+
+test("asking you to read out a code is caught", () => {
+  const result = msg(
+    "We blocked a transfer. Please read us the code we just sent to your phone."
+  );
+
+  assert.ok(
+    result.indicators.some((i) => i.label.startsWith("Direct request for passwords"))
+  );
+});
+
+test("job, bank-detail and new-number scams are caught", () => {
+  assert.ok(
+    msg("Earn 40 KD per day just by liking videos. No experience needed.").score >= 25
+  );
+  assert.ok(
+    msg("Use the new bank details in the file. Do not call me.").score >= 30
+  );
+  assert.ok(
+    msg("I lost my phone, new number. Transfer 50 KD to this account please.").score >= 30
+  );
+});

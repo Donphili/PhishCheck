@@ -22,13 +22,20 @@ If you start selling anything built on PhishCheck, switch to Web Risk and turn t
 
 ### How well does it work?
 
-Run `npm run evaluate` to test the local checks against the current OpenPhish feed. On the day this version was built (300 real phishing links, 136 legitimate sites):
+Run `npm run evaluate` to test the local checks against the current OpenPhish feed, which is replaced with new links every day. Results when this version was built (136 legitimate sites in the comparison list):
 
-- Local checks alone flagged **143 of 300 (about 48%)** of real phishing links, with **0** false alarms on the legitimate sites. Before the improvements in this version they flagged about 4%.
+- On 300 links the rules were tuned against, local checks flagged about **48%**. On 300 completely new links they had never seen, they flagged about **39%**. The second number is the more honest one. Before the improvements in this version the figure was about 4%.
+- **0** of the 136 legitimate sites and **0** of 23 ordinary messages were wrongly flagged.
 - The links that slip through are mostly randomly named pages on free hosting and hacked websites, which look ordinary. Only the online lists can catch many of these, and only once they have been reported.
 - Brand-new scam pages are often not listed anywhere yet. **No result from PhishCheck guarantees a link is safe.**
 
-These numbers come from one day's feed and a small legitimate-site list, so treat them as a rough guide, not a promise.
+These numbers come from small samples taken on one day, so treat them as a rough guide, not a promise.
+
+## Learning Center
+
+- **Can you spot the scam?** A quiz with 14 realistic scenarios in English (fake delivery fees, bank calls, job offers, boss-impersonation emails, QR stickers). Each round has 8 questions and always includes genuine messages, so people do not learn to distrust everything. Every answer explains the warning signs and what to do, and has a button to test the same message in the analyzer. The quiz stores nothing.
+- **How to verify a message safely:** a 7-step checklist.
+- **I already clicked or shared something:** step-by-step advice for five situations (clicked a link, entered a password, shared card details or a code, installed an app, sent money).
 
 ## Privacy
 
@@ -69,6 +76,8 @@ cd backend && npm test    # canonicalization, providers, API route
 src/securityEngine.js       local scoring rules for URLs and messages
 src/linkCheck.js            sends links to the backend and merges the results
 src/App.jsx                 interface
+src/LearningExtras.jsx      quiz and checklist components
+src/learningContent.js      quiz scenarios, checklist and incident steps
 scripts/evaluate.mjs        measures detection against the live OpenPhish feed
 backend/server.js           Express API (rate limited)
 backend/lib/checkUrl.js     runs all sources in parallel, caches, combines results

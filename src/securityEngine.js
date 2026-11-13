@@ -729,7 +729,7 @@ const messagePatterns = [
   {
     label: "Direct request for passwords or verification codes",
     regex:
-      /\b(send|share|provide|reply with|enter|submit|confirm|tell us|give us)\b.{0,70}\b(password|passcode|otp|one[- ]time password|verification code|pin)\b/i,
+      /\b(send|share|provide|reply with|enter|submit|confirm|tell us|give us)\b.{0,70}\b(password|passcode|otp|one[- ]time password|verification code|pin)\b|\b(read|tell|give|forward|send)\s+(us|me|him|her|them|the (caller|agent|team))\b.{0,40}\b(code|otp|pin)\b|\bcode (that )?(we|i) (just )?(sent|texted|messaged)\b/i,
     arabic:
       /(أرسل|ارسل|إرسال|ارسال|شارك|مشاركة|أدخل|ادخل|إدخال|ادخال|زودنا|تزويدنا|أكد|اكد|تأكيد|قدم|تقديم).{0,40}(رمز التحقق|كلمة المرور|كلمة السر|الرقم السري|رمز الدخول|OTP)/i,
     points: 45,
@@ -740,7 +740,7 @@ const messagePatterns = [
   {
     label: "Direct request for financial information",
     regex:
-      /\b(send|share|provide|reply with|enter|submit|give us|confirm)\b.{0,70}\b(bank details|card number|credit card|debit card|account number|payment details|cvv|security code)\b/i,
+      /\b(send|share|provide|reply with|enter|submit|give us|confirm)\b.{0,70}\b(bank details|card number|credit card|debit card|account number|payment details|card details|card info|cvv|security code)\b/i,
     arabic:
       /(أرسل|ارسل|إرسال|ارسال|شارك|مشاركة|أدخل|ادخل|إدخال|ادخال|زودنا|تزويدنا|أكد|اكد|تأكيد|قدم|تقديم).{0,40}(رقم البطاقة|بيانات البطاقة|بيانات الحساب|رقم الحساب|معلومات البطاقة)/i,
     points: 35,
@@ -821,6 +821,74 @@ const messagePatterns = [
     severity: "medium",
     explanation:
       "The message encourages opening or downloading an attachment. Unexpected attachments can contain harmful files.",
+  },
+  {
+    label: "Too-good-to-be-true job or income offer",
+    regex:
+      /\b(earn|make)\b.{0,25}\b\d[\d,.]*\s?(kd|kwd|usd|aed|sar|dinars?|dollars?|\$)?\s*(per|a|\/)\s*(day|hour|week)\b|\b(no experience needed|easy money|work from home|remote work|part[- ]time job)\b.{0,80}\b(earn|per day|daily|paid)\b/i,
+    arabic: /(اربح|ربح).{0,30}(يوميا|يومياً|في اليوم|دينار|دولار)/,
+    points: 25,
+    severity: "medium",
+    explanation:
+      "The message offers unusually high pay for little work. Job and task scams use this to attract people, then ask for deposits or personal details.",
+  },
+  {
+    label: "Unknown sender says they got your number from someone",
+    regex: /\b(got|found|have|received) your (number|contact|details)\b/i,
+    arabic: /(?!)/,
+    points: 10,
+    severity: "low",
+    explanation:
+      "Scammers often open with a vague reason for contacting you. Be careful with anyone who messages you first.",
+  },
+  {
+    label: "Change of bank or payment details",
+    regex:
+      /\b(new|different|updated)\s+(bank\s+(account|details)|payment details|account details|account number|iban)\b|\bchanged\s+(bank|banks|bank accounts)\b/i,
+    arabic: /(?!)/,
+    points: 30,
+    severity: "medium",
+    explanation:
+      "The message announces new bank or payment details. This is the core move of invoice and boss-impersonation fraud. Confirm any change by phoning a number you already have.",
+  },
+  {
+    label: "Tells you not to check with them",
+    regex:
+      /\b(do not|don't|dont|cannot|can't)\s+(call|phone|contact|speak to|ring)\b/i,
+    arabic: /(?!)/,
+    points: 20,
+    severity: "medium",
+    explanation:
+      "Discouraging you from calling or checking is a pressure tactic. Genuine senders are happy to be verified.",
+  },
+  {
+    label: "Claims a new number or a lost phone",
+    regex:
+      /\b(new number|lost my phone|changed my number|my old number)\b/i,
+    arabic: /(رقمي الجديد|فقدت هاتفي|ضاع هاتفي)/,
+    points: 20,
+    severity: "medium",
+    explanation:
+      "Scammers pretend to be a friend or relative on a new number. Call the person on the number you already have before doing anything.",
+  },
+  {
+    label: "Request to transfer money to an account",
+    regex:
+      /\b(transfer|send|wire|pay)\b.{0,20}\b\d[\d,.]*\s?(kd|kwd|usd|aed|sar|dollars?|dinars?)\b.{0,40}\b(to|into)\b.{0,20}\b(account|number|iban|wallet)\b/i,
+    arabic: /(حول|حوّل|ارسل|أرسل).{0,30}(دينار|دولار).{0,30}(حساب|رقم)/,
+    points: 25,
+    severity: "medium",
+    explanation:
+      "The message asks you to send money to an account or number. Confirm the request through another channel before paying anyone.",
+  },
+  {
+    label: "Promise to pay you back",
+    regex: /\b(pay you back|repay you|i'?ll return it)\b/i,
+    arabic: /(?!)/,
+    points: 10,
+    severity: "low",
+    explanation:
+      "A quick promise to repay is often used to make a money request feel safe.",
   },
   {
     label: "Impersonation language",
