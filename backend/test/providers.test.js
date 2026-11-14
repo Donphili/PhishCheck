@@ -38,6 +38,7 @@ test("Safe Browsing: matching full hash is reported", async () => {
   assert.equal(result.status, "match");
   assert.deepEqual(result.threats, ["phishing or social engineering"]);
   assert.ok(requested.endpoint.includes("hashPrefixes="));
+  assert.equal(new URL(requested.endpoint).searchParams.get("alt"), "json");
   assert.equal(requested.headers["x-goog-api-key"], "k");
   assert.ok(!requested.endpoint.includes("key="), "key must not be in the URL");
 
@@ -214,4 +215,20 @@ test("OpenPhish feed retries soon after a failed download", async () => {
     console.error = originalError;
     feed.stop();
   }
+});
+
+test("Safe Browsing: an unreadable reply is reported, not thrown", async () => {
+  const result = await checkSafeBrowsing("http://fine.example/", {
+    apiKey: "k",
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected token");
+      },
+    }),
+  });
+
+  assert.equal(result.status, "unavailable");
+  assert.equal(result.reason, "bad_response");
 });

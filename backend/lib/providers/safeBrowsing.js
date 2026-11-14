@@ -25,6 +25,9 @@ export async function checkSafeBrowsing(url, { apiKey, fetchImpl = fetch, timeou
 
   const endpoint = new URL(ENDPOINT);
 
+  // Without alt=json, Google answers in a binary format (protocol buffers).
+  endpoint.searchParams.set("alt", "json");
+
   for (const prefix of prefixes) endpoint.searchParams.append("hashPrefixes", prefix);
 
   const response = await fetchImpl(endpoint, {
@@ -41,7 +44,19 @@ export async function checkSafeBrowsing(url, { apiKey, fetchImpl = fetch, timeou
     };
   }
 
-  const data = await response.json();
+  let data;
+
+  try {
+    data = await response.json();
+  } catch {
+    return {
+      id: "safebrowsing",
+      name: SAFE_BROWSING_NAME,
+      status: "unavailable",
+      reason: "bad_response",
+    };
+  }
+
   const threats = new Set();
 
   for (const entry of data.fullHashes || []) {
