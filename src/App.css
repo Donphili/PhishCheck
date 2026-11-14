@@ -1797,3 +1797,51 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Scan history: export and import ---------- */
+
+.history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.neutral-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 43px;
+  padding: 0 18px;
+  color: #eaf1fa;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.neutral-button:hover {
+  border-color: var(--green);
+}
+
+.history-notice {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  color: #d3dcea;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green);
+  border-radius: 9px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .history-actions {
+    justify-content: flex-start;
+  }
+}

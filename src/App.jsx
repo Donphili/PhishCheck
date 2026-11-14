@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
 import {
   Activity,
@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { analyzeUrl, analyzeMessage } from "./securityEngine";
@@ -31,6 +32,7 @@ import {
   warmUpBackend,
 } from "./linkCheck";
 import { PhishingQuiz, VerifyChecklist } from "./LearningExtras";
+import { buildExport, describeImport, mergeImport } from "./historyTransfer";
 import "./App.css";
 
 const HISTORY_KEY = "phishcheck-url-history";
@@ -617,6 +619,9 @@ function App() {
   const [error, setError] = useState("");
   const [isChecking, setIsChecking] = useState(false);
 
+  const importInputRef = useRef(null);
+  const [historyNotice, setHistoryNotice] = useState("");
+
   const [historySearch, setHistorySearch] = useState("");
   const [riskFilter, setRiskFilter] = useState("All");
   const [historySort, setHistorySort] = useState("newest");
@@ -739,6 +744,55 @@ function App() {
 
     if (confirmed) {
       setHistory([]);
+    }
+  };
+
+  const exportHistory = () => {
+    const { fileName, content } = buildExport(history);
+    const blob = new Blob([content], { type: "application/json" });
+    const address = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = address;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(address);
+
+    setHistoryNotice(
+      `Saved ${history.length} ${history.length === 1 ? "scan" : "scans"} to ${fileName}. The file lists the links you checked, so keep it private.`
+    );
+  };
+
+  const importHistory = async (event) => {
+    const file = event.target.files?.[0];
+
+    // Reset the input so the same file can be chosen again later.
+    event.target.value = "";
+
+    if (!file) return;
+
+    if (file.size > 1_000_000) {
+      setHistoryNotice("That file is too large to be a PhishCheck history file.");
+      return;
+    }
+
+    try {
+      const outcome = mergeImport(await file.text(), history, {
+        max: MAX_HISTORY,
+        previewLength: HISTORY_MESSAGE_PREVIEW,
+      });
+
+      if (outcome.error) {
+        setHistoryNotice(outcome.error);
+        return;
+      }
+
+      setHistory(outcome.items);
+      setHistoryNotice(describeImport(outcome, MAX_HISTORY));
+    } catch {
+      setHistoryNotice("The file could not be read.");
     }
   };
 
@@ -1249,16 +1303,53 @@ function App() {
                   </p>
                 </div>
 
-                {history.length > 0 && (
+                <div className="history-actions">
+                  {history.length > 0 && (
+                    <button
+                      className="neutral-button"
+                      type="button"
+                      onClick={exportHistory}
+                    >
+                      <Download size={17} />
+                      Export history
+                    </button>
+                  )}
+
                   <button
-                    className="secondary-button danger-button"
-                    onClick={clearHistory}
+                    className="neutral-button"
+                    type="button"
+                    onClick={() => importInputRef.current?.click()}
                   >
-                    <Trash2 size={17} />
-                    Clear history
+                    <Upload size={17} />
+                    Import history
                   </button>
-                )}
+
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={importHistory}
+                    hidden
+                  />
+
+                  {history.length > 0 && (
+                    <button
+                      className="secondary-button danger-button"
+                      type="button"
+                      onClick={clearHistory}
+                    >
+                      <Trash2 size={17} />
+                      Clear history
+                    </button>
+                  )}
+                </div>
               </section>
+
+              {historyNotice && (
+                <p className="history-notice" role="status">
+                  {historyNotice}
+                </p>
+              )}
 
               <section className="panel history-panel">
                 {history.length === 0 ? (

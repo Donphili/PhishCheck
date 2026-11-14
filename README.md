@@ -40,7 +40,7 @@ These numbers come from small samples taken on one day, so treat them as a rough
 ## Privacy
 
 - Analysis of messages and links runs in your browser. Links are never opened.
-- Message history keeps only a short preview.
+- Scan history lives only in your own browser, so each device has its own list. Use **Export history** and **Import history** on the Scan History page to move it between devices. The exported file contains the links you checked and short message previews, so keep it private. Imported files are validated and cleaned before use.
 - With the backend enabled, **only URLs** (never message text) are sent to your server, with usernames, passwords and `#fragments` removed, and then to the threat-list services. Google Safe Browsing receives only a short hash prefix of the link. The server does not log submitted URLs.
 
 ## Run locally
@@ -83,6 +83,7 @@ cd backend && npm test    # canonicalization, providers, API route
 ```
 src/securityEngine.js       local scoring rules for URLs and messages
 src/linkCheck.js            sends links to the backend and merges the results
+src/historyTransfer.js      history export and safe import
 src/App.jsx                 interface
 src/LearningExtras.jsx      quiz and checklist components
 src/learningContent.js      quiz scenarios, checklist and incident steps
