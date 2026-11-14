@@ -8,6 +8,13 @@ import { OpenPhishFeed } from "./lib/providers/openphish.js";
 
 dotenv.config();
 
+export function parseOrigins(value) {
+  return String(value)
+    .split(",")
+    .map((item) => item.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+}
+
 export function loadConfig(env = process.env) {
   // Keys left as the placeholder text are treated as "not set".
   const clean = (value) =>
@@ -15,7 +22,8 @@ export function loadConfig(env = process.env) {
 
   return {
     port: env.PORT || 5000,
-    frontendOrigin: env.FRONTEND_ORIGIN || "http://localhost:5173",
+    // One or more allowed website addresses, separated by commas.
+    frontendOrigins: parseOrigins(env.FRONTEND_ORIGIN || "http://localhost:5173"),
     safeBrowsingKey: clean(env.SAFE_BROWSING_API_KEY),
     webRiskKey: clean(env.WEBRISK_API_KEY),
     urlhausKey: clean(env.URLHAUS_AUTH_KEY),
@@ -34,7 +42,7 @@ export function createApp({ config, checker }) {
     app.set("trust proxy", Number(config.trustProxy) || 1);
   }
 
-  app.use(cors({ origin: config.frontendOrigin }));
+  app.use(cors({ origin: config.frontendOrigins }));
   app.use(express.json({ limit: "10kb" }));
 
   app.use(

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createChecker, sanitizeForLookup } from "../lib/checkUrl.js";
-import { createApp } from "../server.js";
+import { createApp, parseOrigins } from "../server.js";
 
 const jsonResponse = (body, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -99,7 +99,7 @@ test("results are cached, failures are not", async () => {
 });
 
 test("API route validates input and returns the checker result", async () => {
-  const config = { frontendOrigin: "http://localhost:5173", port: 0 };
+  const config = { frontendOrigins: ["http://localhost:5173"], port: 0 };
   const app = createApp({
     config,
     checker: async (url) => ({ status: "no_match", echoed: url, sources: [] }),
@@ -125,6 +125,45 @@ test("API route validates input and returns the checker result", async () => {
 
     assert.equal(ok.status, 200);
     assert.equal((await ok.json()).status, "no_match");
+  } finally {
+    server.close();
+  }
+});
+
+test("allowed origins are parsed from a comma separated list", () => {
+  assert.deepEqual(
+    parseOrigins(" https://app.vercel.app/ , http://localhost:5173,, "),
+    ["https://app.vercel.app", "http://localhost:5173"]
+  );
+});
+
+test("CORS allows listed websites and not others", async () => {
+  const app = createApp({
+    config: {
+      frontendOrigins: ["https://app.vercel.app", "http://localhost:5173"],
+    },
+    checker: async () => ({ status: "no_match", sources: [] }),
+  });
+
+  const server = app.listen(0);
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  try {
+    const ask = (origin) =>
+      fetch(`${base}/api/health`, { headers: { Origin: origin } });
+
+    assert.equal(
+      (await ask("https://app.vercel.app")).headers.get("access-control-allow-origin"),
+      "https://app.vercel.app"
+    );
+    assert.equal(
+      (await ask("http://localhost:5173")).headers.get("access-control-allow-origin"),
+      "http://localhost:5173"
+    );
+    assert.equal(
+      (await ask("https://evil.example")).headers.get("access-control-allow-origin"),
+      null
+    );
   } finally {
     server.close();
   }

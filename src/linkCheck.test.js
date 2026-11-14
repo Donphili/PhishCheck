@@ -43,8 +43,11 @@ test("when nothing could be reached the result says so", () => {
   assert.ok(result.safetyNote.includes("could not be reached"));
 });
 
-test("no backend answer leaves the analysis untouched", () => {
+test("no backend answer adds a note and keeps the local result", () => {
   const analysis = base();
+  const result = applyLinkCheck(analysis, null);
 
-  assert.deepEqual(applyLinkCheck(analysis, null), analysis);
+  assert.equal(result.score, analysis.score);
+  assert.equal(result.riskLevel, analysis.riskLevel);
+  assert.ok(result.safetyNote.includes("could not be reached"));
 });

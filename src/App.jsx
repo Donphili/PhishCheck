@@ -24,7 +24,12 @@ import {
   X,
 } from "lucide-react";
 import { analyzeUrl, analyzeMessage } from "./securityEngine";
-import { applyLinkCheck, checkLink, linkCheckEnabled } from "./linkCheck";
+import {
+  applyLinkCheck,
+  checkLink,
+  linkCheckEnabled,
+  warmUpBackend,
+} from "./linkCheck";
 import { PhishingQuiz, VerifyChecklist } from "./LearningExtras";
 import "./App.css";
 
@@ -434,7 +439,7 @@ function RiskReport({ result }) {
         <div>
           <h2>Risk assessment</h2>
           <p className="result-description">
-            Review the findings and recommended actions from this local analysis.
+            Review the findings and recommended actions from this analysis.
           </p>
         </div>
 
@@ -615,6 +620,10 @@ function App() {
   const [historySearch, setHistorySearch] = useState("");
   const [riskFilter, setRiskFilter] = useState("All");
   const [historySort, setHistorySort] = useState("newest");
+
+  useEffect(() => {
+    warmUpBackend();
+  }, []);
 
   useEffect(() => {
     try {

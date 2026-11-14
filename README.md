@@ -63,6 +63,14 @@ npm run dev
 3. Start the backend with `npm run dev` inside `backend`, and the frontend with `npm run dev` in the project root.
 4. Check `http://localhost:5000/api/health` to see which sources are active.
 
+## Put it online
+
+The website (frontend) and the backend are deployed separately.
+
+1. **Backend on Render** (free web service): connect this GitHub repo, set Root Directory to `backend`, Build Command `npm install`, Start Command `npm start`, Health Check Path `/api/health`. Add these environment variables in Render, never in GitHub: `FRONTEND_ORIGIN` (your Vercel address, no trailing slash, several allowed separated by commas), `TRUST_PROXY=1`, `ENABLE_OPENPHISH`, and any API keys you have.
+2. **Frontend on Vercel**: add the environment variable `VITE_API_URL` set to your Render address (no trailing slash), then redeploy. It is read at build time, so changing it needs a new deployment.
+3. Free Render services sleep after 15 minutes without traffic and can take up to about a minute to wake. The website wakes the backend as soon as a page opens. If the backend is still asleep, results say the online lists could not be reached and use the local checks only.
+
 ## Tests
 
 ```bash
