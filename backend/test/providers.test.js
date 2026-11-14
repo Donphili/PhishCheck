@@ -165,11 +165,53 @@ test("OpenPhish feed: parses, matches host and path, ignores queries", async () 
     fetchImpl: async () => jsonResponse("http://scam.example/login\nhttps://other.pages.dev/"),
   });
 
-  assert.equal((await feed.check("http://scam.example/login")).status, "unavailable");
+  const early = await feed.check("http://scam.example/login");
+
+  assert.equal(early.status, "unavailable");
+  assert.equal(early.reason, "feed_not_loaded");
 
   await feed.refresh();
 
   assert.equal((await feed.check("https://scam.example/login/?utm=1")).status, "match");
   assert.equal((await feed.check("https://OTHER.pages.dev/")).status, "match");
   assert.equal((await feed.check("https://scam.example/other")).status, "no_match");
+});
+
+test("OpenPhish feed retries soon after a failed download", async () => {
+  let calls = 0;
+
+  const feed = new OpenPhishFeed({
+    retryMs: 20,
+    refreshMs: 100000,
+    fetchImpl: async () => {
+      calls += 1;
+
+      if (calls === 1) {
+        throw Object.assign(new TypeError("fetch failed"), {
+          cause: { code: "UND_ERR_CONNECT_TIMEOUT" },
+        });
+      }
+
+      return jsonResponse("http://scam.example/login");
+    },
+  });
+
+  const originalError = console.error;
+  const logged = [];
+
+  console.error = (message) => logged.push(message);
+
+  try {
+    await feed.start();
+    assert.equal(feed.loadedAt, null);
+    assert.ok(logged[0].includes("UND_ERR_CONNECT_TIMEOUT"));
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    assert.ok(feed.loadedAt, "feed should load on the retry");
+    assert.equal((await feed.check("http://scam.example/login")).status, "match");
+  } finally {
+    console.error = originalError;
+    feed.stop();
+  }
 });

@@ -5,6 +5,7 @@ export const OPENPHISH_NAME = "OpenPhish Community Feed";
 const DEFAULT_FEED =
   "https://raw.githubusercontent.com/openphish/public_feed/refs/heads/main/feed.txt";
 const REFRESH_MS = 12 * 60 * 60 * 1000;
+const RETRY_MS = 60 * 1000;
 
 function keyFor(url) {
   const { host, path } = canonicalizeUrl(url);
@@ -29,12 +30,20 @@ export function parseFeed(text) {
 // off unless ENABLE_OPENPHISH=true. Stop using it if PhishCheck starts selling
 // anything, or buy an OpenPhish licence.
 export class OpenPhishFeed {
-  constructor({ feedUrl = DEFAULT_FEED, fetchImpl = fetch } = {}) {
+  constructor({
+    feedUrl = DEFAULT_FEED,
+    fetchImpl = fetch,
+    refreshMs = REFRESH_MS,
+    retryMs = RETRY_MS,
+  } = {}) {
     this.feedUrl = feedUrl;
     this.fetchImpl = fetchImpl;
+    this.refreshMs = refreshMs;
+    this.retryMs = retryMs;
     this.keys = new Set();
     this.loadedAt = null;
     this.timer = null;
+    this.stopped = false;
   }
 
   async refresh() {
@@ -48,24 +57,51 @@ export class OpenPhishFeed {
     this.loadedAt = Date.now();
   }
 
+  // Loads the feed now, then every 12 hours. If a download fails it tries
+  // again after a minute instead of leaving the feed empty for 12 hours.
   start() {
-    this.refresh().catch((error) =>
-      console.error("OpenPhish feed could not be loaded:", error.message)
-    );
+    this.stopped = false;
 
-    this.timer = setInterval(() => {
-      this.refresh().catch((error) =>
-        console.error("OpenPhish feed refresh failed:", error.message)
-      );
-    }, REFRESH_MS);
+    const attempt = async () => {
+      let delay = this.refreshMs;
 
-    this.timer.unref?.();
+      try {
+        await this.refresh();
+      } catch (error) {
+        const code = error?.cause?.code ? ` (${error.cause.code})` : "";
+
+        console.error(
+          `OpenPhish feed could not be loaded: ${error?.message}${code}. Retrying in ${Math.round(this.retryMs / 1000)} seconds.`
+        );
+        delay = this.retryMs;
+      }
+
+      if (this.stopped) return;
+
+      this.timer = setTimeout(attempt, delay);
+      this.timer.unref?.();
+    };
+
+    return attempt();
+  }
+
+  stop() {
+    this.stopped = true;
+    clearTimeout(this.timer);
   }
 
   async check(url) {
-    const stale = !this.loadedAt || Date.now() - this.loadedAt > REFRESH_MS * 2;
+    const stale =
+      !this.loadedAt || Date.now() - this.loadedAt > this.refreshMs * 2;
 
-    if (stale) return { id: "openphish", name: OPENPHISH_NAME, status: "unavailable" };
+    if (stale) {
+      return {
+        id: "openphish",
+        name: OPENPHISH_NAME,
+        status: "unavailable",
+        reason: this.loadedAt ? "feed_out_of_date" : "feed_not_loaded",
+      };
+    }
 
     return this.keys.has(keyFor(url))
       ? { id: "openphish", name: OPENPHISH_NAME, status: "match", threats: ["phishing"] }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createChecker, sanitizeForLookup } from "../lib/checkUrl.js";
+import { createChecker, failureReason, sanitizeForLookup } from "../lib/checkUrl.js";
 import { createApp, parseOrigins } from "../server.js";
 
 const jsonResponse = (body, status = 200) => ({
@@ -167,4 +167,25 @@ test("CORS allows listed websites and not others", async () => {
   } finally {
     server.close();
   }
+});
+
+test("a failing source keeps its own name and says why", async () => {
+  const check = createChecker({
+    config: { ...baseConfig, safeBrowsingKey: "k" },
+    fetchImpl: async () => {
+      throw Object.assign(new TypeError("fetch failed"), {
+        cause: { code: "ENOTFOUND" },
+      });
+    },
+  });
+
+  const result = await check("http://fine.example/");
+  const source = result.sources.find((item) => item.id === "safebrowsing");
+
+  assert.equal(source.name, "Google Safe Browsing");
+  assert.equal(source.status, "unavailable");
+  assert.equal(source.reason, "network");
+  assert.equal(failureReason(Object.assign(new Error("x"), { name: "TimeoutError" })), "timeout");
+  assert.equal(failureReason(new TypeError("Invalid character in header content")), "bad_key_format");
+  assert.equal(failureReason(new Error("boom")), "error");
 });

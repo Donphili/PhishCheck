@@ -121,7 +121,7 @@ if (isMain) {
 
   if (config.enableOpenPhish) {
     openPhish = new OpenPhishFeed({ feedUrl: config.openPhishFeedUrl });
-    openPhish.start();
+    openPhish.start(); // retries by itself if the first download fails
   }
 
   const app = createApp({ config, checker: createChecker({ config, openPhish }) });
