@@ -123,3 +123,31 @@ test("job, bank-detail and new-number scams are caught", () => {
     msg("I lost my phone, new number. Transfer 50 KD to this account please.").score >= 30
   );
 });
+
+test("ordinary Arabic messages are not flagged", () => {
+  const benign = [
+    "هل ما زلنا على موعدنا الساعة 6 اليوم؟ سأحضر المستندات.",
+    "رمز التحقق الخاص بك هو 551203. لا تشارك هذا الرمز مع أي شخص.",
+    "تم إيداع الراتب في حسابك المنتهي بـ 4410.",
+    "سيصل طردك بين الساعة 2 و 5 مساءً. تابعه من تطبيق شركة التوصيل.",
+    "يمكنك فتح حساب جديد من خلال التطبيق في أي وقت.",
+    "لا تتصل بي قبل التاسعة، سأكون نائماً. راسلني بدلاً من ذلك.",
+    "تذكرة رحلتك إلى دبي مؤكدة. يفتح تسجيل الوصول قبل 24 ساعة من الإقلاع.",
+  ];
+
+  for (const text of benign) {
+    assert.ok(msg(text).score < 30, text);
+  }
+});
+
+test("Arabic scams are caught", () => {
+  assert.ok(
+    msg("لإلغاء التحويل، اقرأ لنا الرمز الذي أرسلناه للتو إلى هاتفك.").score >= 30
+  );
+  assert.ok(
+    msg("مبروك! ربحت جائزة. أرسل بيانات بطاقتك هنا.").score >= 30
+  );
+  assert.ok(
+    msg("لديك مخالفة مرورية غير مدفوعة. ادفع خلال 24 ساعة: http://traffic-fines-pay.example").score >= 30
+  );
+});

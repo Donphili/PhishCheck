@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ClipboardCheck,
+  Languages,
   ListChecks,
   RotateCcw,
   Search,
@@ -12,14 +13,107 @@ import {
   XCircle,
 } from "lucide-react";
 import {
-  afterIncident,
   buildRound,
+  getAfterIncident,
+  getVerifySteps,
+  localizeQuestion,
   quizQuestions,
   scoreMessage,
-  verifySteps,
 } from "./learningContent";
 
-export function PhishingQuiz({ onTryIt }) {
+const LANG_KEY = "phishcheck-learning-language";
+
+const UI = {
+  en: {
+    switchLabel: "Switch to Arabic",
+    switchText: "العربية",
+    quizTitle: "Can you spot the scam?",
+    quizSubtitle:
+      "Read each message, then decide if it is a scam or genuine. Some are genuine on purpose, because trusting nothing is not safe either.",
+    quizIntro: (count) =>
+      `A round has 8 real-life style messages taken from ${count} scenarios, including fake delivery fees, bank calls and job offers. All names and links are made up.`,
+    start: "Start the quiz",
+    questionOf: (index, total) => `Question ${index} of ${total}`,
+    progress: "Quiz progress",
+    situation: "Situation:",
+    ask: "Is this a scam?",
+    scam: "Scam",
+    genuine: "Looks genuine",
+    correct: "Correct",
+    notQuite: "Not quite",
+    isScam: "this is a scam",
+    isGenuine: "this one is genuine",
+    warningSigns: "Warning signs",
+    whatToDo: "What to do:",
+    next: "Next question",
+    results: "See my results",
+    testIt: "Test this in PhishCheck",
+    correctOf: (total) => `of ${total} correct`,
+    review: "Review the ones you missed",
+    scamTag: " (scam): ",
+    genuineTag: " (genuine): ",
+    playAgain: "Play again with new questions",
+    verifyTitle: "How to verify a message safely",
+    verifySubtitle:
+      "Go through these steps whenever a message, call or link asks you to do something. Your ticks are not saved anywhere.",
+    stepsDone: (done, total) => `${done} of ${total} steps done`,
+    checklistProgress: "Checklist progress",
+    clearTicks: "Clear the ticks",
+    incidentTitle: "I already clicked or shared something",
+    incidentSubtitle:
+      "It happens to careful people. Choose what happened and follow the steps in order, starting with the first.",
+  },
+  ar: {
+    switchLabel: "التبديل إلى الإنجليزية",
+    switchText: "English",
+    quizTitle: "هل تستطيع اكتشاف الاحتيال؟",
+    quizSubtitle:
+      "اقرأ كل رسالة ثم قرر هل هي احتيال أم رسالة سليمة. بعضها سليم عمداً، لأن عدم الثقة بأي شيء ليس آمناً أيضاً.",
+    quizIntro: (count) =>
+      `تتكون الجولة من 8 رسائل تشبه ما يصل إلى الناس فعلاً، مختارة من ${count} سيناريو، منها رسوم توصيل مزيفة ومكالمات بنكية وعروض عمل. جميع الأسماء والروابط مختلقة.`,
+    start: "ابدأ الاختبار",
+    questionOf: (index, total) => `السؤال ${index} من ${total}`,
+    progress: "تقدم الاختبار",
+    situation: "الموقف:",
+    ask: "هل هذه رسالة احتيال؟",
+    scam: "احتيال",
+    genuine: "تبدو سليمة",
+    correct: "صحيح",
+    notQuite: "ليس تماماً",
+    isScam: "هذه رسالة احتيال",
+    isGenuine: "هذه رسالة سليمة",
+    warningSigns: "علامات تحذيرية",
+    whatToDo: "ماذا تفعل:",
+    next: "السؤال التالي",
+    results: "عرض نتيجتي",
+    testIt: "جرّب هذه الرسالة في PhishCheck",
+    correctOf: (total) => `صحيحة من ${total}`,
+    review: "راجع الأسئلة التي أخطأت فيها",
+    scamTag: " (احتيال): ",
+    genuineTag: " (سليمة): ",
+    playAgain: "العب مجدداً بأسئلة جديدة",
+    verifyTitle: "كيف تتحقق من رسالة بأمان",
+    verifySubtitle:
+      "اتبع هذه الخطوات كلما طلبت منك رسالة أو مكالمة أو رابط فعل شيء. علامات الإنجاز لا تُحفظ في أي مكان.",
+    stepsDone: (done, total) => `تمت ${done} من ${total} خطوات`,
+    checklistProgress: "تقدم قائمة التحقق",
+    clearTicks: "مسح العلامات",
+    incidentTitle: "لقد ضغطت على رابط أو شاركت شيئاً بالفعل",
+    incidentSubtitle:
+      "يحدث ذلك حتى للحذرين. اختر ما حدث معك واتبع الخطوات بالترتيب بدءاً من الأولى.",
+  },
+};
+
+function readLanguage() {
+  try {
+    return localStorage.getItem(LANG_KEY) === "ar" ? "ar" : "en";
+  } catch {
+    return "en";
+  }
+}
+
+export function PhishingQuiz({ onTryIt, lang = "en" }) {
+  const text = UI[lang];
   const [phase, setPhase] = useState("intro");
   const [round, setRound] = useState([]);
   const [index, setIndex] = useState(0);
@@ -34,9 +128,11 @@ export function PhishingQuiz({ onTryIt }) {
     setPhase("playing");
   };
 
-  const question = round[index];
+  // The round keeps the question order; the text follows the chosen language.
+  const base = round[index];
+  const question = base ? localizeQuestion(base, lang) : null;
   const answered = picked !== null;
-  const isCorrect = answered && picked === question.isScam;
+  const isCorrect = answered && picked === base.isScam;
 
   const choose = (saidScam) => {
     if (answered) return;
@@ -44,7 +140,7 @@ export function PhishingQuiz({ onTryIt }) {
     setPicked(saidScam);
     setResults((current) => [
       ...current,
-      { id: question.id, correct: saidScam === question.isScam },
+      { id: base.id, correct: saidScam === base.isScam },
     ]);
   };
 
@@ -68,23 +164,18 @@ export function PhishingQuiz({ onTryIt }) {
         </div>
 
         <div>
-          <h3 id="quiz-title">Can you spot the scam?</h3>
-          <p>
-            Read each message, then decide if it is a scam or genuine. Some
-            are genuine on purpose, because trusting nothing is not safe either.
-          </p>
+          <h3 id="quiz-title">{text.quizTitle}</h3>
+          <p>{text.quizSubtitle}</p>
         </div>
       </div>
 
       {phase === "intro" && (
         <div className="quiz-intro">
-          <p>
-            {`A round has 8 real-life style messages taken from ${quizQuestions.length} scenarios, including fake delivery fees, bank calls and job offers. All names and links are made up.`}
-          </p>
+          <p>{text.quizIntro(quizQuestions.length)}</p>
 
           <button className="primary-button" type="button" onClick={startRound}>
-            Start the quiz
-            <ArrowRight size={17} />
+            {text.start}
+            <ArrowRight size={17} className="rtl-flip" />
           </button>
         </div>
       )}
@@ -92,9 +183,7 @@ export function PhishingQuiz({ onTryIt }) {
       {phase === "playing" && question && (
         <div className="quiz-body">
           <div className="quiz-progress">
-            <span>
-              Question {index + 1} of {round.length}
-            </span>
+            <span>{text.questionOf(index + 1, round.length)}</span>
 
             <div
               className="quiz-bar"
@@ -102,7 +191,7 @@ export function PhishingQuiz({ onTryIt }) {
               aria-valuemin={0}
               aria-valuemax={round.length}
               aria-valuenow={index + (answered ? 1 : 0)}
-              aria-label="Quiz progress"
+              aria-label={text.progress}
             >
               <span
                 style={{
@@ -116,13 +205,18 @@ export function PhishingQuiz({ onTryIt }) {
 
           {question.context && (
             <p className="quiz-context">
-              <strong>Situation:</strong> {question.context}
+              <strong>{text.situation}</strong> {question.context}
             </p>
           )}
 
-          <blockquote className="quiz-message">{question.content}</blockquote>
+          <blockquote
+            className="quiz-message"
+            dir={question.kind === "link" ? "ltr" : undefined}
+          >
+            {question.content}
+          </blockquote>
 
-          <p className="quiz-ask">Is this a scam?</p>
+          <p className="quiz-ask">{text.ask}</p>
 
           <div className="quiz-choices">
             <button
@@ -133,7 +227,7 @@ export function PhishingQuiz({ onTryIt }) {
               aria-pressed={picked === true}
             >
               <ShieldAlert size={17} />
-              Scam
+              {text.scam}
             </button>
 
             <button
@@ -144,7 +238,7 @@ export function PhishingQuiz({ onTryIt }) {
               aria-pressed={picked === false}
             >
               <ShieldCheck size={17} />
-              Looks genuine
+              {text.genuine}
             </button>
           </div>
 
@@ -157,15 +251,15 @@ export function PhishingQuiz({ onTryIt }) {
                   ) : (
                     <XCircle size={19} />
                   )}
-                  {isCorrect ? "Correct" : "Not quite"}:{" "}
-                  {question.isScam ? "this is a scam" : "this one is genuine"}
+                  {isCorrect ? text.correct : text.notQuite}:{" "}
+                  {base.isScam ? text.isScam : text.isGenuine}
                 </h4>
 
                 <p>{question.explanation}</p>
 
                 {question.redFlags.length > 0 && (
                   <>
-                    <strong className="quiz-subtitle">Warning signs</strong>
+                    <strong className="quiz-subtitle">{text.warningSigns}</strong>
                     <ul>
                       {question.redFlags.map((flag) => (
                         <li key={flag}>{flag}</li>
@@ -175,7 +269,7 @@ export function PhishingQuiz({ onTryIt }) {
                 )}
 
                 <p className="quiz-action">
-                  <strong>What to do:</strong> {question.action}
+                  <strong>{text.whatToDo}</strong> {question.action}
                 </p>
 
                 <div className="quiz-feedback-actions">
@@ -184,10 +278,8 @@ export function PhishingQuiz({ onTryIt }) {
                     type="button"
                     onClick={next}
                   >
-                    {index + 1 >= round.length
-                      ? "See my results"
-                      : "Next question"}
-                    <ArrowRight size={17} />
+                    {index + 1 >= round.length ? text.results : text.next}
+                    <ArrowRight size={17} className="rtl-flip" />
                   </button>
 
                   {question.kind !== "none" && (
@@ -197,7 +289,7 @@ export function PhishingQuiz({ onTryIt }) {
                       onClick={() => onTryIt?.(question)}
                     >
                       <Search size={15} />
-                      Test this in PhishCheck
+                      {text.testIt}
                     </button>
                   )}
                 </div>
@@ -211,24 +303,27 @@ export function PhishingQuiz({ onTryIt }) {
         <div className="quiz-done">
           <div className="quiz-score">
             <strong>{correctCount}</strong>
-            <span>of {round.length} correct</span>
+            <span>{text.correctOf(round.length)}</span>
           </div>
 
-          <p>{scoreMessage(correctCount, round.length)}</p>
+          <p>{scoreMessage(correctCount, round.length, lang)}</p>
 
           {results.some((item) => !item.correct) && (
             <div className="quiz-review">
-              <strong className="quiz-subtitle">Review the ones you missed</strong>
+              <strong className="quiz-subtitle">{text.review}</strong>
               <ul>
                 {results
                   .filter((item) => !item.correct)
                   .map((item) => {
-                    const missed = quizQuestions.find((q) => q.id === item.id);
+                    const missed = localizeQuestion(
+                      quizQuestions.find((q) => q.id === item.id),
+                      lang
+                    );
 
                     return (
                       <li key={item.id}>
                         <span>{missed.channel}</span>
-                        {missed.isScam ? " (scam): " : " (genuine): "}
+                        {missed.isScam ? text.scamTag : text.genuineTag}
                         {missed.explanation}
                       </li>
                     );
@@ -239,7 +334,7 @@ export function PhishingQuiz({ onTryIt }) {
 
           <button className="primary-button" type="button" onClick={startRound}>
             <RotateCcw size={16} />
-            Play again with new questions
+            {text.playAgain}
           </button>
         </div>
       )}
@@ -247,7 +342,10 @@ export function PhishingQuiz({ onTryIt }) {
   );
 }
 
-export function VerifyChecklist() {
+export function VerifyChecklist({ lang = "en" }) {
+  const text = UI[lang];
+  const steps = getVerifySteps(lang);
+  const incidents = getAfterIncident(lang);
   const [done, setDone] = useState(() => new Set());
 
   const toggle = (id) => {
@@ -270,33 +368,28 @@ export function VerifyChecklist() {
           </div>
 
           <div>
-            <h3 id="verify-title">How to verify a message safely</h3>
-            <p>
-              Go through these steps whenever a message, call or link asks you
-              to do something. Your ticks are not saved anywhere.
-            </p>
+            <h3 id="verify-title">{text.verifyTitle}</h3>
+            <p>{text.verifySubtitle}</p>
           </div>
         </div>
 
         <div className="verify-progress">
-          <span>
-            {done.size} of {verifySteps.length} steps done
-          </span>
+          <span>{text.stepsDone(done.size, steps.length)}</span>
 
           <div
             className="quiz-bar"
             role="progressbar"
             aria-valuemin={0}
-            aria-valuemax={verifySteps.length}
+            aria-valuemax={steps.length}
             aria-valuenow={done.size}
-            aria-label="Checklist progress"
+            aria-label={text.checklistProgress}
           >
-            <span style={{ width: `${(done.size / verifySteps.length) * 100}%` }} />
+            <span style={{ width: `${(done.size / steps.length) * 100}%` }} />
           </div>
         </div>
 
         <ol className="verify-list">
-          {verifySteps.map((step, position) => (
+          {steps.map((step, position) => (
             <li key={step.id} className={done.has(step.id) ? "ticked" : ""}>
               <label>
                 <input
@@ -323,7 +416,7 @@ export function VerifyChecklist() {
             onClick={() => setDone(new Set())}
           >
             <RotateCcw size={15} />
-            Clear the ticks
+            {text.clearTicks}
           </button>
         )}
       </section>
@@ -335,16 +428,13 @@ export function VerifyChecklist() {
           </div>
 
           <div>
-            <h3 id="incident-title">I already clicked or shared something</h3>
-            <p>
-              It happens to careful people. Choose what happened and follow the
-              steps in order, starting with the first.
-            </p>
+            <h3 id="incident-title">{text.incidentTitle}</h3>
+            <p>{text.incidentSubtitle}</p>
           </div>
         </div>
 
         <div className="incident-list">
-          {afterIncident.map((item) => (
+          {incidents.map((item) => (
             <details key={item.id} className="incident-item">
               <summary>
                 {item.title}
@@ -361,5 +451,48 @@ export function VerifyChecklist() {
         </div>
       </section>
     </>
+  );
+}
+
+// The quiz and checklist with an English / Arabic switch. Arabic flips the
+// layout to right-to-left.
+export function LearningExtras({ onTryIt }) {
+  const [lang, setLang] = useState(readLanguage);
+  const text = UI[lang];
+
+  const switchLanguage = () => {
+    const nextLang = lang === "ar" ? "en" : "ar";
+
+    setLang(nextLang);
+
+    try {
+      localStorage.setItem(LANG_KEY, nextLang);
+    } catch {
+      // A saved language is only a convenience, so ignore storage problems.
+    }
+  };
+
+  return (
+    <div
+      className="learn-extras"
+      dir={lang === "ar" ? "rtl" : "ltr"}
+      lang={lang}
+    >
+      <div className="lang-switch">
+        <button
+          type="button"
+          className="neutral-button"
+          onClick={switchLanguage}
+          aria-label={text.switchLabel}
+          lang={lang === "ar" ? "en" : "ar"}
+        >
+          <Languages size={17} />
+          {text.switchText}
+        </button>
+      </div>
+
+      <PhishingQuiz lang={lang} onTryIt={onTryIt} />
+      <VerifyChecklist lang={lang} />
+    </div>
   );
 }

@@ -731,7 +731,7 @@ const messagePatterns = [
     regex:
       /\b(send|share|provide|reply with|enter|submit|confirm|tell us|give us)\b.{0,70}\b(password|passcode|otp|one[- ]time password|verification code|pin)\b|\b(read|tell|give|forward|send)\s+(us|me|him|her|them|the (caller|agent|team))\b.{0,40}\b(code|otp|pin)\b|\bcode (that )?(we|i) (just )?(sent|texted|messaged)\b/i,
     arabic:
-      /(أرسل|ارسل|إرسال|ارسال|شارك|مشاركة|أدخل|ادخل|إدخال|ادخال|زودنا|تزويدنا|أكد|اكد|تأكيد|قدم|تقديم).{0,40}(رمز التحقق|كلمة المرور|كلمة السر|الرقم السري|رمز الدخول|OTP)/i,
+      /(أرسل|ارسل|إرسال|ارسال|ابعث|ابعت|شارك|مشاركة|أدخل|ادخل|إدخال|ادخال|زودنا|تزويدنا|أكد|اكد|تأكيد|قدم|تقديم|اقرأ|اقرا|أخبرنا|اخبرنا|أعطنا|اعطنا|قل لنا|اذكر).{0,40}(رمز التحقق|رمز|الرمز|الكود|كود|كلمة المرور|كلمة السر|الرقم السري|OTP)/i,
     points: 45,
     severity: "high",
     explanation:
@@ -742,7 +742,7 @@ const messagePatterns = [
     regex:
       /\b(send|share|provide|reply with|enter|submit|give us|confirm)\b.{0,70}\b(bank details|card number|credit card|debit card|account number|payment details|card details|card info|cvv|security code)\b/i,
     arabic:
-      /(أرسل|ارسل|إرسال|ارسال|شارك|مشاركة|أدخل|ادخل|إدخال|ادخال|زودنا|تزويدنا|أكد|اكد|تأكيد|قدم|تقديم).{0,40}(رقم البطاقة|بيانات البطاقة|بيانات الحساب|رقم الحساب|معلومات البطاقة)/i,
+      /(أرسل|ارسل|إرسال|ارسال|شارك|مشاركة|أدخل|ادخل|إدخال|ادخال|زودنا|تزويدنا|أكد|اكد|تأكيد|قدم|تقديم).{0,40}(رقم البطاقة|بيانات البطاقة|بيانات بطاقتك|معلومات البطاقة|معلومات بطاقتك|بطاقتك|بيانات الحساب|رقم الحساب|CVV)/i,
     points: 35,
     severity: "high",
     explanation:
@@ -796,7 +796,7 @@ const messagePatterns = [
     regex:
       /\b(parcel|package|shipment|delivery|customs)\b.{0,80}\b(fee|fees|charge|payment|pay)\b|\b(pay|payment of)\b.{0,60}\b(fee|fine|customs|redelivery)\b|\b(unpaid|outstanding)\b.{0,30}\b(fine|toll|violation)\b/i,
     arabic:
-      /(رسوم|غرامة|مخالفة).{0,40}(شحنة|طرد|توصيل|جمارك|مرورية)|(شحنة|طرد|توصيل|جمارك).{0,40}(رسوم|دفع|سداد)/,
+      /(رسوم|غرامة|مخالفة).{0,40}(شحن|طرد|توصيل|جمارك|مرورية)|(شحن|طرد|توصيل|جمارك).{0,40}(رسوم|سداد)/,
     points: 25,
     severity: "medium",
     explanation:
@@ -826,7 +826,7 @@ const messagePatterns = [
     label: "Too-good-to-be-true job or income offer",
     regex:
       /\b(earn|make)\b.{0,25}\b\d[\d,.]*\s?(kd|kwd|usd|aed|sar|dinars?|dollars?|\$)?\s*(per|a|\/)\s*(day|hour|week)\b|\b(no experience needed|easy money|work from home|remote work|part[- ]time job)\b.{0,80}\b(earn|per day|daily|paid)\b/i,
-    arabic: /(اربح|ربح).{0,30}(يوميا|يومياً|في اليوم|دينار|دولار)/,
+    arabic: /(اربح|ربح|تربح|اكسب|تكسب).{0,30}(يوميا|يومياً|في اليوم|بالساعة|دينار|دولار|د\.ك)/,
     points: 25,
     severity: "medium",
     explanation:
@@ -835,7 +835,7 @@ const messagePatterns = [
   {
     label: "Unknown sender says they got your number from someone",
     regex: /\b(got|found|have|received) your (number|contact|details)\b/i,
-    arabic: /(?!)/,
+    arabic: /(حصلت|وجدت|أخذت|اخذت|جبت)\s+(على\s+)?(رقمك|رقم هاتفك|رقم جوالك)/,
     points: 10,
     severity: "low",
     explanation:
@@ -845,7 +845,8 @@ const messagePatterns = [
     label: "Change of bank or payment details",
     regex:
       /\b(new|different|updated)\s+(bank\s+(account|details)|payment details|account details|account number|iban)\b|\bchanged\s+(bank|banks|bank accounts)\b/i,
-    arabic: /(?!)/,
+    arabic:
+      /(حساب|بيانات)\s+(بنكي|بنكية|مصرفي|مصرفية)\s+جديد(ة)?|رقم\s+(حساب|ايبان|آيبان)\s+جديد|البيانات\s+الجديدة/,
     points: 30,
     severity: "medium",
     explanation:
@@ -855,7 +856,7 @@ const messagePatterns = [
     label: "Tells you not to check with them",
     regex:
       /\b(do not|don't|dont|cannot|can't)\s+(call|phone|contact|speak to|ring)\b/i,
-    arabic: /(?!)/,
+    arabic: /(لا|ما)\s+(تتصل|تتصلوا|تتصلي|تكلمني|تكلموني|تتواصل)/,
     points: 20,
     severity: "medium",
     explanation:
@@ -875,7 +876,7 @@ const messagePatterns = [
     label: "Request to transfer money to an account",
     regex:
       /\b(transfer|send|wire|pay)\b.{0,20}\b\d[\d,.]*\s?(kd|kwd|usd|aed|sar|dollars?|dinars?)\b.{0,40}\b(to|into)\b.{0,20}\b(account|number|iban|wallet)\b/i,
-    arabic: /(حول|حوّل|ارسل|أرسل).{0,30}(دينار|دولار).{0,30}(حساب|رقم)/,
+    arabic: /(حول|حوّل|تحويل|ارسل|أرسل|إرسال).{0,30}(دينار|دولار|د\.ك|دك).{0,30}(حساب|رقم|ايبان)/,
     points: 25,
     severity: "medium",
     explanation:
@@ -884,7 +885,7 @@ const messagePatterns = [
   {
     label: "Promise to pay you back",
     regex: /\b(pay you back|repay you|i'?ll return it)\b/i,
-    arabic: /(?!)/,
+    arabic: /(سأرجع|سارجع|سأرد|سارد|راح\s+(أرجع|ارجع)|برجع)\S*\s+لك/,
     points: 10,
     severity: "low",
     explanation:
@@ -894,7 +895,7 @@ const messagePatterns = [
     label: "Impersonation language",
     regex:
       /\b(we are from|on behalf of|your bank representative|technical support team|security department)\b/i,
-    arabic: /(نحن من|بالنيابة عن|ممثل البنك|فريق الدعم الفني|قسم الأمن)/,
+    arabic: /(نحن من|بالنيابة عن|ممثل البنك|فريق الدعم الفني|قسم الأمن|فريق الأمن)/,
     points: 10,
     severity: "low",
     explanation:

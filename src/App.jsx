@@ -31,7 +31,7 @@ import {
   linkCheckEnabled,
   warmUpBackend,
 } from "./linkCheck";
-import { PhishingQuiz, VerifyChecklist } from "./LearningExtras";
+import { LearningExtras } from "./LearningExtras";
 import { buildExport, describeImport, mergeImport } from "./historyTransfer";
 import "./App.css";
 
@@ -1706,10 +1706,7 @@ function App() {
                 </article>
               </div>
 
-              <div className="learn-extras">
-                <PhishingQuiz onTryIt={tryQuizItem} />
-                <VerifyChecklist />
-              </div>
+              <LearningExtras onTryIt={tryQuizItem} />
             </>
           )}
 

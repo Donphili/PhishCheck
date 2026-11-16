@@ -1,4 +1,12 @@
+import {
+  afterIncidentAr,
+  quizTextAr,
+  scoreMessagesAr,
+  verifyStepsAr,
+} from "./learningContent.ar.js";
+
 // Content for the Learning Center quiz and the "verify safely" checklist.
+// English is defined here. Arabic text lives in learningContent.ar.js.
 // All names and web addresses in the scenarios are made up (.example).
 // Amounts are in Kuwaiti dinar (KD).
 
@@ -358,20 +366,34 @@ export function buildRound(random = Math.random) {
   );
 }
 
-export function scoreMessage(correct, total) {
+export function scoreMessage(correct, total, lang = "en") {
   const ratio = correct / total;
+  const band =
+    ratio === 1 ? "perfect" : ratio >= 0.75 ? "strong" : ratio >= 0.5 ? "decent" : "low";
 
-  if (ratio === 1) {
-    return "Perfect. You spotted every scam and trusted every genuine message correctly.";
-  }
+  if (lang === "ar") return scoreMessagesAr[band];
 
-  if (ratio >= 0.75) {
-    return "Strong result. Review the ones you missed and you will be hard to fool.";
-  }
-
-  if (ratio >= 0.5) {
-    return "A decent start. Scams are designed to look convincing, so read the explanations carefully.";
-  }
-
-  return "Do not worry. These scams fool many people. Go through the explanations and the checklist, then try again.";
+  return {
+    perfect:
+      "Perfect. You spotted every scam and trusted every genuine message correctly.",
+    strong:
+      "Strong result. Review the ones you missed and you will be hard to fool.",
+    decent:
+      "A decent start. Scams are designed to look convincing, so read the explanations carefully.",
+    low: "Do not worry. These scams fool many people. Go through the explanations and the checklist, then try again.",
+  }[band];
 }
+
+// Which scenarios are scams, and which tool they open, is the same in every
+// language. Only the text changes, so a quiz can switch language mid-round.
+export function localizeQuestion(question, lang = "en") {
+  if (lang !== "ar") return question;
+
+  return { ...question, ...quizTextAr[question.id] };
+}
+
+export const getVerifySteps = (lang = "en") =>
+  lang === "ar" ? verifyStepsAr : verifySteps;
+
+export const getAfterIncident = (lang = "en") =>
+  lang === "ar" ? afterIncidentAr : afterIncident;

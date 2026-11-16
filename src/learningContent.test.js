@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import {
   afterIncident,
   buildRound,
+  getAfterIncident,
+  getVerifySteps,
+  localizeQuestion,
   quizQuestions,
   ROUND_SIZE,
   scoreMessage,
@@ -95,5 +98,80 @@ test("checklist and incident steps are well formed", () => {
 
   for (const item of afterIncident) {
     assert.ok(item.steps.length >= 3, item.id);
+  }
+});
+
+const hasArabic = (text) => /[\u0600-\u06FF]/.test(text);
+
+test("every scenario has complete Arabic text with the same answer", () => {
+  for (const base of quizQuestions) {
+    const ar = localizeQuestion(base, "ar");
+
+    // Which tool it opens and whether it is a scam never depends on language.
+    assert.equal(ar.id, base.id);
+    assert.equal(ar.isScam, base.isScam);
+    assert.equal(ar.kind, base.kind);
+
+    assert.ok(hasArabic(ar.channel), `${base.id} channel`);
+    assert.ok(hasArabic(ar.explanation), `${base.id} explanation`);
+    assert.ok(hasArabic(ar.action), `${base.id} action`);
+    assert.ok(Array.isArray(ar.redFlags), base.id);
+    assert.equal(ar.redFlags.length > 0, base.isScam, base.id);
+
+    for (const flag of ar.redFlags) assert.ok(hasArabic(flag), base.id);
+
+    // Context only exists in Arabic when it exists in English.
+    assert.equal(Boolean(ar.context), Boolean(base.context), base.id);
+
+    if (base.kind === "link") {
+      assert.equal(ar.content, base.content, `${base.id} keeps the same address`);
+    } else {
+      assert.ok(hasArabic(ar.content), `${base.id} content`);
+    }
+  }
+});
+
+test("PhishCheck judges the Arabic scenarios the same way", () => {
+  for (const base of quizQuestions.filter((q) => q.kind !== "none")) {
+    const q = localizeQuestion(base, "ar");
+    const result =
+      q.kind === "link" ? analyzeUrl(q.content) : analyzeMessage(q.content);
+
+    if (q.isScam) {
+      assert.ok(result.score >= 30, `${q.id} (Arabic) should be Moderate or higher`);
+    } else {
+      assert.ok(result.score < 30, `${q.id} (Arabic) should stay Low`);
+    }
+  }
+});
+
+test("Arabic checklist and incident steps match the English ones", () => {
+  assert.deepEqual(
+    getVerifySteps("ar").map((s) => s.id),
+    getVerifySteps("en").map((s) => s.id)
+  );
+  assert.deepEqual(
+    getAfterIncident("ar").map((s) => s.id),
+    getAfterIncident("en").map((s) => s.id)
+  );
+
+  for (const step of getVerifySteps("ar")) {
+    assert.ok(hasArabic(step.title) && hasArabic(step.detail), step.id);
+  }
+
+  for (const item of getAfterIncident("ar")) {
+    assert.ok(hasArabic(item.title), item.id);
+    assert.ok(item.steps.length >= 3, item.id);
+    assert.ok(item.steps.every(hasArabic), item.id);
+  }
+});
+
+test("English helpers are unchanged and Arabic score messages exist", () => {
+  assert.equal(getVerifySteps("en"), verifySteps);
+  assert.equal(getAfterIncident("en"), afterIncident);
+  assert.equal(localizeQuestion(quizQuestions[0], "en"), quizQuestions[0]);
+
+  for (const [correct, total] of [[8, 8], [6, 8], [4, 8], [1, 8]]) {
+    assert.ok(hasArabic(scoreMessage(correct, total, "ar")));
   }
 });
