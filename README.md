@@ -38,6 +38,19 @@ These numbers come from small samples taken on one day, so treat them as a rough
 - **How to verify a message safely:** a 7-step checklist.
 - **I already clicked or shared something:** step-by-step advice for five situations (clicked a link, entered a password, shared card details or a code, installed an app, sent money).
 
+## Team training
+
+Managers create a team, share a team code or link with staff, and see **totals only**: how many finished the quiz, the average score, and the most missed topics. There are no staff accounts. Staff choose whether to send their score after each round. Only the score, the language and the missed topics are stored. Never names, emails, phone numbers or message text. Details appear only after 3 quizzes, so nobody's own score can be worked out. A manager can delete the team and all its results at any time.
+
+It needs a database. Setup:
+
+1. Create a free project at supabase.com.
+2. In its SQL Editor, run `backend/sql/team_training.sql`.
+3. Add `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (a secret key, never the public one) to the backend settings (Render, or `backend/.env`).
+4. Restart the backend. `/api/health` shows `"teamTraining":true`.
+
+The free Render backend sleeps when idle, so it cannot store data itself. That is why the data lives in Supabase.
+
 ## Privacy
 
 - Analysis of messages and links runs in your browser. Links are never opened.
@@ -85,6 +98,8 @@ cd backend && npm test    # canonicalization, providers, API route
 src/securityEngine.js       local scoring rules for URLs and messages
 src/linkCheck.js            sends links to the backend and merges the results
 src/historyTransfer.js      history export and safe import
+src/TeamTraining.jsx        team pages for managers and staff
+src/teamApi.js              calls to the team service
 src/App.jsx                 interface
 src/LearningExtras.jsx      quiz and checklist components
 src/learningContent.js      quiz scenarios, checklist and incident steps
@@ -93,4 +108,6 @@ backend/server.js           Express API (rate limited)
 backend/lib/checkUrl.js     runs all sources in parallel, caches, combines results
 backend/lib/canonicalize.js Safe Browsing URL canonicalization and hashing
 backend/lib/providers/      one file per threat-list source
+backend/lib/team/           team codes, anonymous summaries, storage, routes
+backend/sql/                database setup for team training
 ```

@@ -1900,3 +1900,276 @@ button {
   font-size: 14.5px;
   line-height: 1.9;
 }
+
+/* ---------- Team training ---------- */
+
+.team-page {
+  display: grid;
+  gap: 15px;
+}
+
+.team-page form {
+  display: grid;
+  gap: 10px;
+  max-width: 560px;
+}
+
+.team-page label {
+  color: #b5c1d3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.team-page .primary-button {
+  justify-self: start;
+}
+
+.icon-toggle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: #7f91a8;
+  background: none;
+  border: 0;
+}
+
+.team-privacy {
+  margin-top: 6px;
+  padding: 14px 16px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green);
+  border-radius: 10px;
+}
+
+.team-privacy strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #eaf1fa;
+  font-size: 12.5px;
+}
+
+.team-privacy p {
+  margin: 0;
+  color: #b5c1d3;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.team-note {
+  margin: 8px 0 0;
+  color: #b5c1d3;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.team-note.strong {
+  color: #ffd98a;
+}
+
+.team-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: var(--green);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.team-created {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+
+.team-created .neutral-button {
+  justify-self: start;
+}
+
+.team-field {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.team-field.warning {
+  border-color: #5a4a26;
+}
+
+.team-field span {
+  color: #b5c1d3;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.team-field code {
+  color: #eaf1fa;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+
+.team-field .neutral-button {
+  justify-self: start;
+  min-height: 36px;
+}
+
+.team-results {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.team-results h4 {
+  margin: 0;
+  color: #eaf1fa;
+  font-size: 16px;
+}
+
+.team-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.team-stats div {
+  padding: 14px;
+  background: #0d1727;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.team-stats strong {
+  display: block;
+  color: var(--green);
+  font-family: Manrope, sans-serif;
+  font-size: 26px;
+}
+
+.team-stats span {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.team-missed {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.team-missed li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 10px 14px;
+  color: #eaf1fa;
+  background: #0d1727;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.team-missed em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.team-weeks {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  max-width: 420px;
+}
+
+.team-weeks div {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.team-week-bar {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 70px;
+  background: #0d1727;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.team-week-bar span {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  background: var(--green);
+}
+
+.team-weeks b {
+  color: #eaf1fa;
+  font-size: 13px;
+}
+
+.team-weeks small {
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.team-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  color: #d3dcea;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green);
+  border-radius: 10px;
+  font-size: 12.5px;
+}
+
+.learn-extras[dir="rtl"] .team-banner {
+  border-left: 1px solid var(--border);
+  border-right: 3px solid var(--green);
+}
+
+.team-submit {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.team-submit p {
+  margin: 0;
+  color: #b5c1d3;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.team-submit .team-sent {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--green);
+  font-weight: 700;
+}

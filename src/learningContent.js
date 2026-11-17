@@ -16,6 +16,7 @@ import {
 export const quizQuestions = [
   {
     id: "parcel-fee",
+    topic: "Fake delivery fee",
     channel: "SMS",
     kind: "message",
     content:
@@ -33,6 +34,7 @@ export const quizQuestions = [
   },
   {
     id: "bank-alert",
+    topic: "Genuine bank alert",
     channel: "SMS",
     kind: "message",
     content:
@@ -46,6 +48,7 @@ export const quizQuestions = [
   },
   {
     id: "remote-job",
+    topic: "Fake job offer",
     channel: "WhatsApp",
     kind: "message",
     content:
@@ -63,6 +66,7 @@ export const quizQuestions = [
   },
   {
     id: "account-suspended",
+    topic: "Account suspension email",
     channel: "Email",
     kind: "message",
     content:
@@ -80,6 +84,7 @@ export const quizQuestions = [
   },
   {
     id: "expected-code",
+    topic: "Genuine login code",
     channel: "SMS",
     kind: "message",
     context: "You just tried to log in to your own account.",
@@ -94,6 +99,7 @@ export const quizQuestions = [
   },
   {
     id: "bank-security-call",
+    topic: "Bank \"security team\" call",
     channel: "Phone call",
     kind: "message",
     content:
@@ -111,6 +117,7 @@ export const quizQuestions = [
   },
   {
     id: "lookalike-link",
+    topic: "Look-alike link",
     channel: "Link",
     kind: "link",
     content: "https://www.paypal.com.account-review.example/signin",
@@ -126,6 +133,7 @@ export const quizQuestions = [
   },
   {
     id: "country-domain",
+    topic: "Genuine country website",
     channel: "Link",
     kind: "link",
     content: "https://www.google.com.kw/search?q=weather",
@@ -138,6 +146,7 @@ export const quizQuestions = [
   },
   {
     id: "ceo-invoice",
+    topic: "Boss or supplier invoice fraud",
     channel: "Email",
     kind: "message",
     context: "You work in your company's finance team.",
@@ -157,6 +166,7 @@ export const quizQuestions = [
   },
   {
     id: "traffic-fine",
+    topic: "Fake traffic fine",
     channel: "SMS",
     kind: "message",
     content:
@@ -174,6 +184,7 @@ export const quizQuestions = [
   },
   {
     id: "order-update",
+    topic: "Genuine order update",
     channel: "App notification",
     kind: "message",
     context:
@@ -189,6 +200,7 @@ export const quizQuestions = [
   },
   {
     id: "giveaway",
+    topic: "Fake giveaway",
     channel: "Instagram message",
     kind: "message",
     content:
@@ -206,6 +218,7 @@ export const quizQuestions = [
   },
   {
     id: "friend-new-number",
+    topic: "Friend in trouble on a new number",
     channel: "WhatsApp",
     kind: "message",
     content:
@@ -223,6 +236,7 @@ export const quizQuestions = [
   },
   {
     id: "parking-qr",
+    topic: "Fake QR sticker",
     channel: "QR code",
     kind: "none",
     context:

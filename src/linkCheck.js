@@ -6,6 +6,7 @@ import { getRiskLevel } from "./securityEngine.js";
 // PhishCheck stays fully local.
 const API_URL = (import.meta.env?.VITE_API_URL || "").replace(/\/$/, "");
 
+export const API_BASE = API_URL;
 export const linkCheckEnabled = Boolean(API_URL);
 
 // Free hosting puts the backend to sleep when it is idle. Calling it as soon as

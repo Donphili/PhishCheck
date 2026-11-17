@@ -62,6 +62,14 @@ const UI = {
     incidentTitle: "I already clicked or shared something",
     incidentSubtitle:
       "It happens to careful people. Choose what happened and follow the steps in order, starting with the first.",
+    teamBanner: (name) => `You are training with ${name}.`,
+    teamLeave: "Leave team",
+    teamShare: (name) =>
+      `This round can count toward ${name}. Only your score, the language and which topics you missed are sent. Never your name.`,
+    teamSend: "Send my score to my team",
+    teamSending: "Sending...",
+    teamSent: "Sent. Thank you.",
+    teamFailed: "The score could not be sent. You can try again.",
   },
   ar: {
     switchLabel: "التبديل إلى الإنجليزية",
@@ -101,6 +109,14 @@ const UI = {
     incidentTitle: "لقد ضغطت على رابط أو شاركت شيئاً بالفعل",
     incidentSubtitle:
       "يحدث ذلك حتى للحذرين. اختر ما حدث معك واتبع الخطوات بالترتيب بدءاً من الأولى.",
+    teamBanner: (name) => `أنت تتدرب مع ${name}.`,
+    teamLeave: "مغادرة الفريق",
+    teamShare: (name) =>
+      `يمكن أن تُحتسب هذه الجولة لصالح ${name}. يُرسل فقط مجموع نقاطك واللغة والمواضيع التي أخطأت فيها. لا يُرسل اسمك أبداً.`,
+    teamSend: "أرسل نتيجتي إلى فريقي",
+    teamSending: "جارٍ الإرسال...",
+    teamSent: "تم الإرسال. شكراً لك.",
+    teamFailed: "تعذّر إرسال النتيجة. يمكنك المحاولة مجدداً.",
   },
 };
 
@@ -112,15 +128,17 @@ function readLanguage() {
   }
 }
 
-export function PhishingQuiz({ onTryIt, lang = "en" }) {
+export function PhishingQuiz({ onTryIt, lang = "en", team = null, onSendScore }) {
   const text = UI[lang];
   const [phase, setPhase] = useState("intro");
   const [round, setRound] = useState([]);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState(null);
   const [results, setResults] = useState([]);
+  const [sendState, setSendState] = useState("idle");
 
   const startRound = () => {
+    setSendState("idle");
     setRound(buildRound());
     setIndex(0);
     setPicked(null);
@@ -155,6 +173,19 @@ export function PhishingQuiz({ onTryIt, lang = "en" }) {
   };
 
   const correctCount = results.filter((item) => item.correct).length;
+
+  const sendScore = async () => {
+    setSendState("sending");
+
+    const outcome = await onSendScore({
+      score: correctCount,
+      total: round.length,
+      language: lang,
+      missed: results.filter((item) => !item.correct).map((item) => item.id),
+    });
+
+    setSendState(outcome?.ok ? "sent" : "failed");
+  };
 
   return (
     <section className="panel learn-panel" aria-labelledby="quiz-title">
@@ -332,6 +363,33 @@ export function PhishingQuiz({ onTryIt, lang = "en" }) {
             </div>
           )}
 
+          {team && onSendScore && (
+            <div className="team-submit">
+              <p>{text.teamShare(team.name || team.code)}</p>
+
+              {sendState === "sent" ? (
+                <p className="team-sent" role="status">
+                  <CheckCircle2 size={17} /> {text.teamSent}
+                </p>
+              ) : (
+                <button
+                  className="neutral-button"
+                  type="button"
+                  onClick={sendScore}
+                  disabled={sendState === "sending"}
+                >
+                  {sendState === "sending" ? text.teamSending : text.teamSend}
+                </button>
+              )}
+
+              {sendState === "failed" && (
+                <p className="form-error" role="alert">
+                  {text.teamFailed}
+                </p>
+              )}
+            </div>
+          )}
+
           <button className="primary-button" type="button" onClick={startRound}>
             <RotateCcw size={16} />
             {text.playAgain}
@@ -456,7 +514,7 @@ export function VerifyChecklist({ lang = "en" }) {
 
 // The quiz and checklist with an English / Arabic switch. Arabic flips the
 // layout to right-to-left.
-export function LearningExtras({ onTryIt }) {
+export function LearningExtras({ onTryIt, team = null, onLeaveTeam, onSendScore }) {
   const [lang, setLang] = useState(readLanguage);
   const text = UI[lang];
 
@@ -491,7 +549,22 @@ export function LearningExtras({ onTryIt }) {
         </button>
       </div>
 
-      <PhishingQuiz lang={lang} onTryIt={onTryIt} />
+      {team && (
+        <div className="team-banner">
+          <span>{text.teamBanner(team.name || team.code)}</span>
+
+          <button className="quiz-link-button" type="button" onClick={onLeaveTeam}>
+            {text.teamLeave}
+          </button>
+        </div>
+      )}
+
+      <PhishingQuiz
+        lang={lang}
+        onTryIt={onTryIt}
+        team={team}
+        onSendScore={onSendScore}
+      />
       <VerifyChecklist lang={lang} />
     </div>
   );

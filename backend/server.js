@@ -5,6 +5,8 @@ import rateLimit from "express-rate-limit";
 import { pathToFileURL } from "node:url";
 import { createChecker } from "./lib/checkUrl.js";
 import { OpenPhishFeed } from "./lib/providers/openphish.js";
+import { createTeamRouter } from "./lib/team/routes.js";
+import { createSupabaseStore } from "./lib/team/supabaseStore.js";
 
 dotenv.config();
 
@@ -30,10 +32,13 @@ export function loadConfig(env = process.env) {
     enableOpenPhish: env.ENABLE_OPENPHISH === "true",
     openPhishFeedUrl: env.OPENPHISH_FEED_URL || undefined,
     trustProxy: env.TRUST_PROXY,
+    // Team training storage (optional). See sql/team_training.sql.
+    supabaseUrl: clean(env.SUPABASE_URL),
+    supabaseKey: clean(env.SUPABASE_SECRET_KEY),
   };
 }
 
-export function createApp({ config, checker }) {
+export function createApp({ config, checker, teamStore = null, teamLimits = {} }) {
   const app = express();
 
   // Behind a host such as Render or Railway the real client IP arrives in a
@@ -65,8 +70,20 @@ export function createApp({ config, checker }) {
         urlhaus: Boolean(config.urlhausKey),
         openPhish: config.enableOpenPhish,
       },
+      teamTraining: Boolean(teamStore),
     });
   });
+
+  if (teamStore) {
+    app.use("/api/teams", createTeamRouter({ store: teamStore, ...teamLimits }));
+  } else {
+    app.use("/api/teams", (req, res) =>
+      res.status(503).json({
+        status: "error",
+        error: "Team training is not set up on this server yet.",
+      })
+    );
+  }
 
   app.post("/api/check-url", async (req, res) => {
     const { url } = req.body || {};
@@ -124,7 +141,16 @@ if (isMain) {
     openPhish.start(); // retries by itself if the first download fails
   }
 
-  const app = createApp({ config, checker: createChecker({ config, openPhish }) });
+  const teamStore =
+    config.supabaseUrl && config.supabaseKey
+      ? createSupabaseStore({ url: config.supabaseUrl, key: config.supabaseKey })
+      : null;
+
+  const app = createApp({
+    config,
+    checker: createChecker({ config, openPhish }),
+    teamStore,
+  });
 
   app.listen(config.port, () => {
     console.log("-----------------------------------");
@@ -143,6 +169,7 @@ if (isMain) {
         .filter(Boolean)
         .join(", ") || "none configured"
     );
+    console.log(`Team training: ${teamStore ? "on" : "off (no Supabase settings)"}`);
     console.log("-----------------------------------");
   });
 }

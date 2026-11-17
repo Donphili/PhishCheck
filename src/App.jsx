@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Trash2,
   Upload,
+  Users,
   X,
 } from "lucide-react";
 import { analyzeUrl, analyzeMessage } from "./securityEngine";
@@ -32,6 +33,9 @@ import {
   warmUpBackend,
 } from "./linkCheck";
 import { LearningExtras } from "./LearningExtras";
+import TeamTraining from "./TeamTraining";
+import { getTeamInfo, submitResult } from "./teamApi";
+import { teamFromSearch } from "./teamUtils";
 import { buildExport, describeImport, mergeImport } from "./historyTransfer";
 import "./App.css";
 
@@ -610,7 +614,10 @@ function MailIcon() {
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState("URL Scanner");
+  // A staff link (/?team=ABCD-EFGH) opens the Learning Center directly.
+  const [activeTab, setActiveTab] = useState(() =>
+    teamFromSearch(window.location.search) ? "Learning Center" : "URL Scanner"
+  );
   const [url, setUrl] = useState("");
   const [message, setMessage] = useState("");
   const [result, setResult] = useState(null);
@@ -619,6 +626,7 @@ function App() {
   const [error, setError] = useState("");
   const [isChecking, setIsChecking] = useState(false);
 
+  const [team, setTeam] = useState(null);
   const importInputRef = useRef(null);
   const [historyNotice, setHistoryNotice] = useState("");
 
@@ -628,6 +636,15 @@ function App() {
 
   useEffect(() => {
     warmUpBackend();
+
+    // A staff link looks like /?team=ABCD-EFGH
+    const code = teamFromSearch(window.location.search);
+
+    if (!code) return;
+
+    getTeamInfo(code).then((outcome) => {
+      if (outcome.ok) setTeam({ code, name: outcome.data.name });
+    });
   }, []);
 
   useEffect(() => {
@@ -846,6 +863,7 @@ function App() {
     { name: "Message Analyzer", icon: FileSearch },
     { name: "Scan History", icon: History },
     { name: "Learning Center", icon: BookOpen },
+    { name: "Team Training", icon: Users },
   ];
 
   // Opens a quiz scenario in the matching tool so people can see how
@@ -863,6 +881,13 @@ function App() {
       setActiveTab("Message Analyzer");
     }
   };
+
+  const joinTeam = (joined) => {
+    setTeam(joined);
+    setActiveTab("Learning Center");
+  };
+
+  const sendScore = (result) => submitResult(team.code, result);
 
   const changeTab = (tab) => {
     setActiveTab(tab);
@@ -1706,8 +1731,17 @@ function App() {
                 </article>
               </div>
 
-              <LearningExtras onTryIt={tryQuizItem} />
+              <LearningExtras
+                onTryIt={tryQuizItem}
+                team={team}
+                onLeaveTeam={() => setTeam(null)}
+                onSendScore={sendScore}
+              />
             </>
+          )}
+
+          {activeTab === "Team Training" && (
+            <TeamTraining onJoin={joinTeam} />
           )}
 
           <footer className="app-footer">
